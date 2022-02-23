@@ -1,0 +1,1 @@
+DATABASE_URL = "mysql+mysqldb://Kodu:q58VEZ0HXyl1c7q1@127.0.0.1:3306/cse201_app?charset=utf8"
