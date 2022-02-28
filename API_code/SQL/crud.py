@@ -10,7 +10,7 @@ def get_all_cars(session: Session, limit: int, offset: int) -> List[CarInfo]:
     return session.query(CarInfo).offset(offset).limit(limit).all()
 
 
-# Function to  get info of a particular car
+# Function to get info of a particular car
 def get_car_info_by_id(session: Session, _id: int) -> CarInfo:
     car_info = session.query(CarInfo).get(_id)
 
