@@ -1,5 +1,4 @@
 from datetime import datetime
-from os import access
 from sqlalchemy.orm import Session
 from fastapi import status, HTTPException
 import models, schemas
@@ -17,12 +16,15 @@ def delete_user(db: Session, username: str):
 def get_users(db: Session, skip: int = 0, limit: int = 100):
     return db.query(models.User).offset(skip).limit(limit).all()
 
+# TODO: Implement hashing
+def hash_password(password: str):
+    return password
+
 
 def create_user(db: Session, user: schemas.CreateUser):
     
-    # TODO: Implement hashing
-    fake_hashed_password = user.rawPassword
-    # TODO: Implement hashing
+    fake_hashed_password = hash_password(user.rawPassword)
+    
 
     if get_user(db, user.username) is not None:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Username is taken")

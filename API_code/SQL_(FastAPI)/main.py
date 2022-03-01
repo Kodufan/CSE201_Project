@@ -1,9 +1,7 @@
-from sqlite3 import OperationalError
 from typing import List
 
 from fastapi import Depends, FastAPI, HTTPException
 from sqlalchemy.orm import Session
-from sqlalchemy import exc
 
 import crud
 from crud import *

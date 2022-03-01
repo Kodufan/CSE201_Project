@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Integer, Enum, DateTime, ForeignKey, null
+from sqlalchemy import Column, String, Integer, Enum, DateTime, ForeignKey
 from geoalchemy2 import Geometry
 from database import Base
 from schemas import accessLevel
