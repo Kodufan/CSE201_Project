@@ -1,13 +1,19 @@
+from sqlite3 import OperationalError
 from typing import List
 
 from fastapi import Depends, FastAPI, HTTPException
 from sqlalchemy.orm import Session
+from sqlalchemy import exc
 
-from . import crud, models, schemas
-from .database import SessionLocal, engine
+import crud
+from crud import *
+from models import *
+from schemas import *
+
+from database import SessionLocal, engine
+from schemas import accessLevel
 
 models.Base.metadata.create_all(bind=engine)
-
 app = FastAPI()
 
 
@@ -19,37 +25,29 @@ def get_db():
     finally:
         db.close()
 
+@app.post("/createUser", response_model=User, status_code=201)
+def create_user(user: CreateUser, db: Session = Depends(get_db)):
+    return crud.create_user(db, user)
 
-@app.post("/users/", response_model=schemas.User)
-def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
-    db_user = crud.get_user_by_email(db, email=user.email)
-    if db_user:
-        raise HTTPException(status_code=400, detail="Email already registered")
-    return crud.create_user(db=db, user=user)
-
+@app.post("/setUserPerms", response_model=User, status_code=200)
+def set_perms(username: str, accessLevel: accessLevel, db: Session = Depends(get_db)):
+    return set_user_perms(db, username, accessLevel)
 
 @app.get("/users/", response_model=List[schemas.User])
 def read_users(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    users = crud.get_users(db, skip=skip, limit=limit)
+    users = get_users(db, skip=skip, limit=limit)
     return users
 
-
-@app.get("/users/{user_id}", response_model=schemas.User)
-def read_user(user_id: int, db: Session = Depends(get_db)):
-    db_user = crud.get_user(db, user_id=user_id)
+@app.get("/users/{username}")
+def get_user(username: str, db: Session = Depends(get_db)):
+    db_user = crud.get_user(db, username=username)
     if db_user is None:
         raise HTTPException(status_code=404, detail="User not found")
     return db_user
 
-
-@app.post("/users/{user_id}/items/", response_model=schemas.Item)
-def create_item_for_user(
-    user_id: int, item: schemas.ItemCreate, db: Session = Depends(get_db)
-):
-    return crud.create_user_item(db=db, item=item, user_id=user_id)
-
-
-@app.get("/items/", response_model=List[schemas.Item])
-def read_items(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    items = crud.get_items(db, skip=skip, limit=limit)
-    return items
+@app.delete("/users/{username}", status_code=200)
+def delete_user(username: str, db: Session = Depends(get_db)):
+    db_user = crud.get_user(db, username=username)
+    if db_user is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    crud.delete_user(db, username=username)

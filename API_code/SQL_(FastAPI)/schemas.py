@@ -1,18 +1,14 @@
-from lib2to3.pytree import Base
 from datetime import datetime
-import this
 from pydantic import BaseModel
-from yarl import URL
 from typing import Optional, List
 import enum
 
 class accessLevel(str, enum.Enum):
-    User = "User"
-    #Moderator = "Moderator"
-    Admin = "Admin"
+    USER = "User"
+    #MODERATOR = "Moderator"
+    ADMIN = "Admin"
 
 class Comment(BaseModel):
-    replyTo: this
     rating: int
     username: str
     commentBody: str
@@ -29,15 +25,17 @@ class Location(BaseModel):
 
 class User(BaseModel):
     username: str
-    hashedPassword: str
     accessLevel: accessLevel
     accountCreated: datetime
+
+    class Config:
+        orm_mode=True
 
 class CreateUser(User):
     rawPassword: str
 
+class StoreUser(User):
+    hashedPassword: str
+
 class Place(BaseModel):
-    thumbnails: List[URL]
-
-
-
+    thumbnails: List[str]
