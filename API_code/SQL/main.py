@@ -14,4 +14,4 @@ app.include_router(api.router)
 # GET operation at route '/'
 @app.get('/')
 def root_api():
-    return {"message": "Welcome to Balasundar's Technical Blog"}
+    return {"message": "Welcome to the NeverBeen API interface! You shouldn't see this unless you looked for it."}

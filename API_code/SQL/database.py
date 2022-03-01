@@ -1,6 +1,8 @@
+from fastapi import HTTPException
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
+from exceptions import DatabaseNotConnectedException
 import config
 
 DATABASE_URL = config.DATABASE_URL
@@ -20,5 +22,9 @@ def get_db():
     try:
         db = SessionLocal()
         yield db
+    except DatabaseNotConnectedException as err:
+        print("ERROR")
+        raise HTTPException(**err.__dict__)
+
     finally:
         db.close()
