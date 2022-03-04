@@ -1,5 +1,4 @@
-from sqlalchemy import Column, String, Integer, Enum, DateTime, ForeignKey
-from geoalchemy2 import Geometry
+from sqlalchemy import Column, Float, String, Integer, Enum, DateTime, ForeignKey, Boolean
 from database import Base
 from schemas import accessLevel
 
@@ -19,10 +18,12 @@ class Place(Base):
 
     placeID = Column(Integer, primary_key=True, autoincrement=True)
     posterID = Column(String(20), ForeignKey("users.username"))
-    location = Column(Geometry('POINT'), nullable=False)
-    title = Column(String(60), nullable=False)
+    plusCode = Column(String(100), nullable=False)
+    friendlyName = Column(String(100), nullable=False)
+    country = Column(String(6))
     description = Column(String(1000))
-    
+    rating = Column(Float)
+    isvisible = Column(Boolean, nullable=False)
 
     #owner = relationship("User", back_populates="items")
 

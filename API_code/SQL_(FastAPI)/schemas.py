@@ -1,35 +1,35 @@
 from datetime import datetime
+from fastapi import File
 from pydantic import BaseModel
 from typing import Optional, List
 import enum
 
 class accessLevel(str, enum.Enum):
     USER = "User"
-    #MODERATOR = "Moderator"
+    MODERATOR = "Moderator"
     ADMIN = "Admin"
 
-class Comment(BaseModel):
+class Rating(BaseModel):
     rating: int
     username: str
+
+    class Config:
+        orm_mode=True
+
+class Comment(Rating):
     commentBody: str
     timePosted: datetime
     timeEdited: datetime
 
-class Location(BaseModel):
-    latitude: float
-    longitude: float
-    country: Optional[str]
-    address: Optional[str]
-    comments: List[Comment]
-    rating: float
-
 class User(BaseModel):
     username: str
-    accessLevel: accessLevel
-    accountCreated: datetime
-
+    
     class Config:
         orm_mode=True
+
+class InternalUser(User):
+    accessLevel: accessLevel
+    accountCreated: datetime
 
 class CreateUser(User):
     rawPassword: str
@@ -37,5 +37,19 @@ class CreateUser(User):
 class StoreUser(User):
     hashedPassword: str
 
-class Place(BaseModel):
-    thumbnails: List[str]
+class SetPlace(BaseModel):
+    plusCode: str
+    friendlyName: str
+    country: Optional[str]
+    description: Optional[str]
+    rating: float
+
+    class Config:
+        orm_mode = True
+    
+
+class GetPlace(SetPlace):
+    placeID: int
+    posterID: str
+    thumbnails: Optional[List[str]]
+    comments: Optional[List[Comment]]
