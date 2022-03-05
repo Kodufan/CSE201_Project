@@ -85,7 +85,7 @@ def delete_user(user: schemas.InternalUser = Depends(get_current_user), db: Sess
 def create_place(place: SetPlace, user: schemas.InternalUser = Depends(get_current_user), db: Session = Depends(get_db)):
     return crud.create_place(db, place, user)
 
-@app.get("/place/{placeID}")
+@app.get("/place/{placeID}", response_model=schemas.GetPlace)
 def get_place(placeID: int, db: Session = Depends(get_db)):
     db_place = crud.get_place(db, placeID=placeID)
     if db_place is None:

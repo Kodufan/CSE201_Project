@@ -4,6 +4,7 @@ import random
 import string
 
 from fastapi import HTTPException, status
+from sqlalchemy import desc
 from sqlalchemy.orm import Session
 
 import models
@@ -149,11 +150,25 @@ def create_place(db: Session, place: schemas.SetPlace, user: schemas.User):
     return db_place
 
 def get_place(db: Session, placeID: int):
-    return db.query(models.Place).filter(models.Place.placeID == placeID).first()
+    place = db.query(models.Place).filter(models.Place.placeID == placeID).first()
+
+    if place is not None:
+        returnPlace = schemas.GetPlace(
+                placeID=place.placeID,
+                posterID=place.posterID,
+                plusCode=place.plusCode,
+                friendlyName=place.friendlyName,
+                country=place.country,
+                description=place.description,
+                rating=place.rating,
+                thumbnails=db.query(models.Thumbnail).filter(models.Thumbnail.placeID == placeID).all(),
+                comments=db.query(models.Comment).filter(models.Comment.placeID == placeID).all()
+            )
+        return returnPlace
 
 def get_places(db: Session, skip: int = 0, limit: int = 100):
     #TODO: Implement ability to get places by a certain location
-    places = db.query(models.Place).order_by('rating').offset(skip).limit(limit).all()
+    places = db.query(models.Place).order_by(desc('rating')).offset(skip).limit(limit).all()
     list_of_places = list()
     for i in places:
         list_of_places.append(schemas.GetPlace(
