@@ -51,6 +51,7 @@ app = FastAPI(openapi_tags=tags_metadata)
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
 
+#TODO: add trycatch to make folder
 app.mount("/usercontent", StaticFiles(directory=STATIC_FILES_DIRECTORY), name="usercontent")
 
 # Dependency
