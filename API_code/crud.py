@@ -15,7 +15,7 @@ import schemas
 from config import (ACCESS_TOKEN_DELTA_MINUTES, SERVER_IP,
                     STATIC_FILES_DIRECTORY, TOKEN_LENGTH)
 from latlonhelper import distance
-from schemas import PatchPlace, accessLevel, placeVisibility, tokenType
+from schemas import PatchPlace, accessLevel, visibility, tokenType
 
 # =============================================================================== USERS
 
@@ -40,6 +40,8 @@ def get_user_from_token(db: Session, token: str):
     get_token = get_token_by_token(db, token)
     if get_token is None:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Bad token")
+    if get_token.type == tokenType.VERIFICATION:
+        return get_user(db, get_token.username)
     if not get_token.expires < datetime.now():
         return get_user(db, refresh_token_by_token(db, token, tokenType.ACCOUNT).username)
     raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Expired token")
@@ -131,9 +133,9 @@ def get_place(db: Session, placeID: int):
 def get_place_pointer(db: Session, placeID: int):
     return db.query(models.Place).filter(models.Place.placeID == placeID).first()
 
-def get_places_by_popularity(db: Session, skip: int = 0, limit: int = 100, visibility = placeVisibility):
+def get_places_by_popularity(db: Session, skip: int = 0, limit: int = 100, visibility = visibility):
     query = db.query(models.Place).order_by(desc('rating'))
-    if visibility != placeVisibility.ALL:
+    if visibility != visibility.ALL:
         query = query.filter(models.Place.isvisible == (True if visibility == 1 else False))
     else: 
         query = query.order_by(desc('rating'))
@@ -153,10 +155,10 @@ def get_places_by_popularity(db: Session, skip: int = 0, limit: int = 100, visib
         ))
     return list_of_places
 
-def get_places_by_distance(db: Session, latitude: int, longitude: int, skip: int = 0, limit: int = 100, visibility = placeVisibility):
+def get_places_by_distance(db: Session, latitude: int, longitude: int, skip: int = 0, limit: int = 100, visibility = visibility):
     query = db.query(models.Place)
 
-    if visibility != placeVisibility.ALL:
+    if visibility != visibility.ALL:
         query = query.filter(models.Place.isvisible == (True if visibility == 1 else False))
     else: 
         query = query.order_by(desc('rating'))
@@ -367,6 +369,7 @@ def create_token(db: Session, username: str, type: models.tokenType):
         expires=(datetime.now() + timedelta(minutes=ACCESS_TOKEN_DELTA_MINUTES))
     )
 
+
     # Makes sure that it never uses the same token more than once in the DB.
     while True:
         db_token.token = make_random_string(TOKEN_LENGTH)
@@ -392,3 +395,10 @@ def refresh_token_by_user(db: Session, user: schemas.InternalUser):
     db_token.expires = datetime.now() + timedelta(minutes=ACCESS_TOKEN_DELTA_MINUTES)
     db.commit()
     return db_token
+
+def verify_account(db: Session, token: str):
+    username = get_token_by_token(db, token).username
+    user = db.query(models.User).filter(models.User.username == username).first()
+    print(user)
+    user.verified = True
+    db.commit()

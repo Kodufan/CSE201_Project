@@ -19,7 +19,7 @@ class placeOrder(str, enum.Enum):
     POPULARITY = "Popularity"
     DISTANCE = "Distance"
 
-class placeVisibility(int, enum.Enum):
+class visibility(int, enum.Enum):
     ALL = -1
     VERIFIED = 1
     UNVERIFIED = 0

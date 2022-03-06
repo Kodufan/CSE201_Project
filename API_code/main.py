@@ -7,7 +7,7 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.staticfiles import StaticFiles
 from apihelper import send_verification_email
-
+from openlocationcode import isFull
 import crud
 from apihelper import decode_token, get_db, write_files
 from config import STATIC_FILES_DIRECTORY
@@ -15,7 +15,7 @@ from crud import *
 from database import engine
 from models import *
 from schemas import *
-from schemas import accessLevel, placeOrder, placeVisibility, tokenType
+from schemas import accessLevel, placeOrder, visibility, tokenType
 
 # Dict of tags and their descriptions to break the OpenAPI docs into sections
 tags_metadata = [
@@ -224,41 +224,10 @@ def list_places(order: placeOrder, latitude: float = 0, longitude: float = 0, sk
     Note: If sorting by rating, latitude and longitude are not required.
     """
     if order == placeOrder.POPULARITY:
-        places = get_places_by_popularity(db, skip, limit, placeVisibility.VERIFIED)
+        places = get_places_by_popularity(db, skip, limit, visibility.VERIFIED)
     else:
-        places = get_places_by_distance(db, latitude, longitude, skip, limit, placeVisibility.VERIFIED)
+        places = get_places_by_distance(db, latitude, longitude, skip, limit, visibility.VERIFIED)
     return places
-
-@app.get("/places/verification", response_model=List[schemas.GetPlace], tags=["Moderation"])
-def list_places(skip: int = 0, limit: int = 100, user: schemas.InternalUser = Depends(get_current_user), db: Session = Depends(get_db)):
-    """
-    Gets a list of unverified places and their information
-
-    - skip: will offset the places returned
-    - limit: will return either this amount of places or the number of places after the skip offset, whichever is smaller
-    """
-    if user.accessLevel == accessLevel.USER:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
-    places = get_places_by_popularity(db, skip, limit, placeVisibility.UNVERIFIED)
-    return places
-
-@app.post("/places/setverification", status_code=status.HTTP_200_OK, tags=["Moderation"])
-def set_verified(isverified: bool, placeID: int, db: Session = Depends(get_db), user: schemas.InternalUser = Depends(get_current_user)):
-    """
-    Sets the visibility of a place:
-
-    - isverified: boolean value of place visibility
-    - placeID: the id to fetch. Will always be an integer
-
-    Note: Only staff can use this command, otherwise it will respond with a 401. 
-    """
-    if user.accessLevel == accessLevel.USER:
-        raise HTTPException(status_code=401, detail="Forbidden")
-    place = crud.get_place(db, placeID)
-    if place is None:
-        raise HTTPException(status_code=404, detail="Place not found")
-
-    set_place_visibility(db, placeID, isverified)
 
 @app.patch("/place/{placeID}", response_model=GetPlace, tags=["Places"])
 async def update_item(patch_place: PatchPlace, user: schemas.InternalUser = Depends(get_current_user), db: Session = Depends(get_db)):
@@ -273,6 +242,9 @@ async def update_item(patch_place: PatchPlace, user: schemas.InternalUser = Depe
 
     Note: Returns a 404 if the place doesn't exist. Returns a 403 if the user is trying to modify someone else's place and is not staff. Staff can modify any place
     """
+
+    if not isFull(patch_place.plusCode):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid PlusCode")
     db_place = crud.get_place(db, patch_place.placeID)
     if db_place is None:
         raise HTTPException(status_code=404, detail="Place not found")
@@ -432,8 +404,42 @@ def delete_rating(ratingID: int, user: InternalUser = Depends(get_current_user),
         raise HTTPException(status_code=401, detail="Forbidden")
 
 
-# =============================================================================== SECURITY
+# =============================================================================== MODERATION
 
+
+@app.get("/places/verification", response_model=List[schemas.GetPlace], tags=["Moderation"])
+def list_places(skip: int = 0, limit: int = 100, user: schemas.InternalUser = Depends(get_current_user), db: Session = Depends(get_db)):
+    """
+    Gets a list of unverified places and their information
+
+    - skip: will offset the places returned
+    - limit: will return either this amount of places or the number of places after the skip offset, whichever is smaller
+    """
+    if user.accessLevel == accessLevel.USER:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
+    places = get_places_by_popularity(db, skip, limit, visibility.UNVERIFIED)
+    return places
+
+@app.post("/places/setverification", status_code=status.HTTP_200_OK, tags=["Moderation"])
+def set_verified(isverified: bool, placeID: int, db: Session = Depends(get_db), user: schemas.InternalUser = Depends(get_current_user)):
+    """
+    Sets the visibility of a place:
+
+    - isverified: boolean value of place visibility
+    - placeID: the id to fetch. Will always be an integer
+
+    Note: Only staff can use this command, otherwise it will respond with a 401. 
+    """
+    if user.accessLevel == accessLevel.USER:
+        raise HTTPException(status_code=401, detail="Forbidden")
+    place = crud.get_place(db, placeID)
+    if place is None:
+        raise HTTPException(status_code=404, detail="Place not found")
+
+    set_place_visibility(db, placeID, isverified)
+
+
+# =============================================================================== SECURITY
 
 @app.post("/login", tags=["Security"])
 async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
@@ -467,6 +473,20 @@ async def login(user: schemas.InternalUser = Depends(get_current_user), db: Sess
     if not crud.refresh_token_by_user(db, user):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Bad token")
 
+@app.get("/verify/{token}", status_code=status.HTTP_200_OK, tags=["Security"])
+async def login(token: str, db: Session = Depends(get_db)):
+    """
+    Attempts to verify a user account given a VERIFICATION type token
+
+    - VERIFICATION tokens never expire
+
+    Note: Returns a 400 if the token is invalid.
+    """
+    token_obj = crud.get_token_by_token(db, token)
+    if not token and not token_obj.type == tokenType.VERIFICATION:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Bad token")
+    verify_account(db, token)
+    return "Account verified! You may close this tab"
 
 # =============================================================================== DEBUG
 
