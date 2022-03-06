@@ -2,7 +2,6 @@ import enum
 from datetime import datetime
 from typing import List, Optional
 
-from fastapi import File
 from pydantic import BaseModel
 
 
@@ -14,36 +13,38 @@ class accessLevel(str, enum.Enum):
 class tokenType(str, enum.Enum):
     ACCOUNT = "Account"
     PASSRESET = "PassReset"
+    VERIFICATION = "Verification"
 
-class User(BaseModel):
-    username: str
-    
+class placeOrder(str, enum.Enum):
+    POPULARITY = "Popularity"
+    DISTANCE = "Distance"
+
+class placeVisibility(int, enum.Enum):
+    ALL = -1
+    VERIFIED = 1
+    UNVERIFIED = 0
+
+class SetRating(BaseModel):
+    placeID: int
+    ratingValue: int
+    commentBody: Optional[str]
+
     class Config:
         orm_mode=True
 
-class InternalUser(User):
-    accessLevel: accessLevel
-    accountCreated: datetime
-
-class CreateUser(User):
-    rawPassword: str
-
-class StoreUser(User):
-    hashedPassword: str
-
-class Rating(BaseModel):
+class GetRating(SetRating):
     ratingID: int
-    placeID: int
-    ratingValue: int
     username: str
     timePosted: datetime
     timeEdited: datetime
 
+class PatchRating(BaseModel):
+    ratingID: int
+    ratingValue: Optional[int]
+    commentBody: Optional[str]
+
     class Config:
         orm_mode=True
-
-class Comment(Rating):
-    commentBody: str
 
 class Thumbnail(BaseModel):
     imageID: int
@@ -66,11 +67,48 @@ class SetPlace(BaseModel):
 
     class Config:
         orm_mode=True
-    
+
+class PatchPlace(BaseModel):
+    placeID: int
+    plusCode: Optional[str]
+    friendlyName: Optional[str]
+    country: Optional[str]
+    description: Optional[str]
+
+    class Config:
+        orm_mode=True
+
 class GetPlace(SetPlace):
     placeID: int
     posterID: str
     rating: float
     thumbnails: Optional[List[Thumbnail]]
-    comments: Optional[List[Comment]]
+    comments: Optional[List[GetRating]]
+
+class InternalPlace(GetPlace):
+    isvisible: bool
+
+class User(BaseModel):
+    username: str
+    
+    class Config:
+        orm_mode=True
+
+class UserInfo(User):
+    ratings: Optional[List[GetRating]]
+    places: Optional[List[GetPlace]]
+
+class InternalUser(UserInfo):
+    email: str
+    verified: bool
+    accessLevel: accessLevel
+    accountCreated: datetime
+
+class CreateUser(User):
+    email: str
+    rawPassword: str
+
+class StoreUser(User):
+    hashedPassword: str
+
     

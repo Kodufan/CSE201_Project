@@ -1,23 +1,23 @@
-from importlib.resources import path
 import os
-import shutil
 from pathlib import Path
 from typing import List
 
-from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
+from fastapi import Depends, FastAPI, HTTPException, UploadFile
+from fastapi.encoders import jsonable_encoder
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.staticfiles import StaticFiles
-from pathlib2 import PurePosixPath
-from sqlalchemy.orm import Session
+from apihelper import send_verification_email
 
 import crud
+from apihelper import decode_token, get_db, write_files
 from config import STATIC_FILES_DIRECTORY
 from crud import *
-from database import SessionLocal, engine
+from database import engine
 from models import *
 from schemas import *
-from schemas import accessLevel, tokenType
+from schemas import accessLevel, placeOrder, placeVisibility, tokenType
 
+# Dict of tags and their descriptions to break the OpenAPI docs into sections
 tags_metadata = [
     {
         "name": "Users",
@@ -32,8 +32,12 @@ tags_metadata = [
         "description": "Operations with thumbnails.",
     },
     {
-        "name": "Comments",
-        "description": "Operations with comments.",
+        "name": "Ratings",
+        "description": "Operations with ratings.",
+    },
+    {
+        "name": "Moderation",
+        "description": "Operations with moderation.",
     },
     {
         "name": "Security",
@@ -45,53 +49,30 @@ tags_metadata = [
     },
 ]
 
-
+# Creates database connections
 models.Base.metadata.create_all(bind=engine)
+
+# Initializes the application
 app = FastAPI(openapi_tags=tags_metadata)
 
+# Initializes OAuth2 and tells the OpenAPI docs to look at the /login endpoint
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
 
-#TODO: add trycatch to make folder
-app.mount("/usercontent", StaticFiles(directory=STATIC_FILES_DIRECTORY), name="usercontent")
 
-# Dependency
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+# Mounts /usercontent as a static directory at STATIC_FILES_DIRECTORY in config.py. If directory does not exist, make it and mount it
+try:
+    app.mount("/usercontent", StaticFiles(directory=STATIC_FILES_DIRECTORY), name="usercontent")
+except:
+    os.mkdir(STATIC_FILES_DIRECTORY)
+    app.mount("/usercontent", StaticFiles(directory=STATIC_FILES_DIRECTORY), name="usercontent")
 
-# Security
 
-def decode_token(db, token: str):
-    return crud.get_user_from_token(db, token)
-
+# This method returns the current user from a token
 async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
     user = decode_token(db, token)
     return user
 
-async def write_file(filePath: Path, file: UploadFile):
-    if not filePath.exists():
-        filePath.mkdir()
 
-    with open(filePath / file.filename, "wb+") as file_object:
-        shutil.copyfileobj(file.file, file_object)
-    return file.filename
-
-async def write_files(filePath: Path, files: List[UploadFile], existing_urls: List[str]):
-    urls = list()
-    for file in files:
-        file_name = ''
-
-        while True:
-            file_name = crud.make_random_string(10)
-            if file_name not in existing_urls:
-                break
-        file.filename = file_name + PurePosixPath(file.filename).suffix
-        urls.append(await write_file(filePath, file))
-    return urls
-# Endpoints
 
 # =============================================================================== USERS
 
@@ -101,13 +82,16 @@ def create_user(user: CreateUser, db: Session = Depends(get_db)):
     """
     Create a user with all the information:
 
-    - username: this unique identifier must not exceed 20 characters
+    - username: this must not exceed 20 characters or match another username
+    - email: this unique identifier must not exceed 100 characters
     - rawpassword: this will be the password. Stored hashed with SHA-256
     """
-    return crud.create_user(db, user)
+    user = crud.create_user(db, user)
+    send_verification_email(db, user)
+    return user
 
 @app.post("/setUserPerms", response_model=schemas.User, status_code=status.HTTP_200_OK, tags=["Users"])
-def set_perms(username: str, accessLevel: accessLevel, db: Session = Depends(get_db), callingUser: schemas.InternalUser = Depends(get_current_user)):
+def set_perms(username: str, accessLevel: accessLevel, callingUser: schemas.InternalUser = Depends(get_current_user), db: Session = Depends(get_db)):
     """
     Sets the permissions of a user:
 
@@ -126,30 +110,36 @@ def set_perms(username: str, accessLevel: accessLevel, db: Session = Depends(get
     else:
         raise HTTPException(status_code=401, detail="Forbidden") 
 
-@app.get("/users/", response_model=List[schemas.InternalUser], tags=["Users"])
-def list_users(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    """
-    Gets a list of users and their information
-
-    - skip: will offset the users returned
-    - limit: will return either this amount of users or the number of users after the skip offset, whichever is smaller
-    """
-    users = get_users(db, skip=skip, limit=limit)
-    return users
-
 @app.get("/user/{username}", response_model=schemas.InternalUser, tags=["Users"])
-def get_user(username: str, db: Session = Depends(get_db)):
+def get_user(username: str, user: schemas.InternalUser = Depends(get_current_user), db: Session = Depends(get_db)):
     """
     Gets a user's information
 
     - username: the username to fetch
 
-    Note: Returns a 404 if the user doesn't exist
+    Note: Returns a 404 if the user doesn't exist or 403 if user is not an admin
     """
-    db_user = crud.get_user(db, username=username)
+    if user.accessLevel != accessLevel.ADMIN:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
+    db_user = crud.get_user_info(db, username=username)
     if db_user is None:
         raise HTTPException(status_code=404, detail="User not found")
     return db_user
+
+@app.get("/users/", response_model=List[schemas.InternalUser], tags=["Users"])
+def list_users(skip: int = 0, limit: int = 100, user: schemas.InternalUser = Depends(get_current_user), db: Session = Depends(get_db)):
+    """
+    Gets a list of users and their information
+
+    - skip: will offset the users returned
+    - limit: will return either this amount of users or the number of users after the skip offset, whichever is smaller
+
+    Note: Returns a 403 if user is not an admin
+    """
+    if user.accessLevel != accessLevel.ADMIN:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
+    users = get_users(db, skip=skip, limit=limit)
+    return users
 
 @app.delete("/user/", status_code=200, tags=["Users"])
 def delete_user(user: schemas.InternalUser = Depends(get_current_user), db: Session = Depends(get_db)):
@@ -174,7 +164,7 @@ def delete_user(user: schemas.InternalUser = Depends(get_current_user), db: Sess
 # =============================================================================== PLACES
 
 
-@app.post("/createPlace", response_model=schemas.GetPlace, status_code=status.HTTP_201_CREATED, tags=["Places"])
+@app.post("/create/place", response_model=schemas.GetPlace, status_code=status.HTTP_201_CREATED, tags=["Places"])
 def create_place(place: SetPlace, user: schemas.InternalUser = Depends(get_current_user), db: Session = Depends(get_db)):
     """
     Create a place with all the information:
@@ -186,33 +176,128 @@ def create_place(place: SetPlace, user: schemas.InternalUser = Depends(get_curre
     """
     return crud.create_place(db, place, user)
 
-@app.get("/place/{placeID}", response_model=schemas.GetPlace, tags=["Places"])
+@app.get("/place/guest/{placeID}", response_model=schemas.GetPlace, tags=["Places"])
 def get_place(placeID: int, db: Session = Depends(get_db)):
     """
     Gets the information of a palce
 
     - placeID: ID of the place to retrieve. Will always be an integer
+    - visibility: Determines whether all, verified, or unverified places are displayed
 
-    Note: Returns a 404 if the place doesn't exist
+    Note: Returns a 404 if the place doesn't exist. Returns a 403 if place is unverified.
+    """
+    db_place = crud.get_place(db, placeID=placeID)
+    if db_place is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Place not found")
+    if not db_place.isvisible:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Place not verified")
+    return db_place
+
+@app.get("/place/user/{placeID}", response_model=schemas.GetPlace, tags=["Places"])
+def get_place(placeID: int, user: schemas.InternalUser = Depends(get_current_user), db: Session = Depends(get_db)):
+    """
+    Gets the information of a palce
+
+    - placeID: ID of the place to retrieve. Will always be an integer
+    - visibility: Determines whether all, verified, or unverified places are displayed
+
+    Note: Returns a 404 if the place doesn't exist. Returns a 403 if a user tries to view all or unverified places.
     """
     db_place = crud.get_place(db, placeID=placeID)
     if db_place is None:
         raise HTTPException(status_code=404, detail="Place not found")
+    if user.accessLevel == accessLevel.USER:
+        if not db_place.isvisible:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Place not verified")
+    db_place = crud.get_place(db, placeID=placeID)
     return db_place
 
-@app.get("/places/", response_model=List[schemas.GetPlace], tags=["Places"])
-def list_places(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    places = get_places(db, skip=skip, limit=limit)
+@app.get("/places/guest", response_model=List[schemas.GetPlace], tags=["Places"])
+def list_places(order: placeOrder, latitude: float = 0, longitude: float = 0, skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    """
+    Gets a list of verified places and their information
+
+    - order: determines if results are ordered by distance or rating
+    - skip: will offset the places returned
+    - limit: will return either this amount of places or the number of places after the skip offset, whichever is smaller
+
+    Note: If sorting by rating, latitude and longitude are not required.
+    """
+    if order == placeOrder.POPULARITY:
+        places = get_places_by_popularity(db, skip, limit, placeVisibility.VERIFIED)
+    else:
+        places = get_places_by_distance(db, latitude, longitude, skip, limit, placeVisibility.VERIFIED)
     return places
 
-@app.delete("/place/{placeID}", status_code=status.HTTP_200_OK, tags=["Places"])
-def delete_place(placeID: int, user: schemas.InternalUser = Depends(get_current_user), db: Session = Depends(get_db)):
+@app.get("/places/verification", response_model=List[schemas.GetPlace], tags=["Moderation"])
+def list_places(skip: int = 0, limit: int = 100, user: schemas.InternalUser = Depends(get_current_user), db: Session = Depends(get_db)):
+    """
+    Gets a list of unverified places and their information
 
-    if user.accessLevel == accessLevel.ADMIN:
-        db_place = crud.get_place(db, placeID=placeID)
-        if db_place is None:
-            raise HTTPException(status_code=404, detail="Place not found")
-        crud.delete_user(db, placeID=placeID)
+    - skip: will offset the places returned
+    - limit: will return either this amount of places or the number of places after the skip offset, whichever is smaller
+    """
+    if user.accessLevel == accessLevel.USER:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
+    places = get_places_by_popularity(db, skip, limit, placeVisibility.UNVERIFIED)
+    return places
+
+@app.post("/places/setverification", status_code=status.HTTP_200_OK, tags=["Moderation"])
+def set_verified(isverified: bool, placeID: int, db: Session = Depends(get_db), user: schemas.InternalUser = Depends(get_current_user)):
+    """
+    Sets the visibility of a place:
+
+    - isverified: boolean value of place visibility
+    - placeID: the id to fetch. Will always be an integer
+
+    Note: Only staff can use this command, otherwise it will respond with a 401. 
+    """
+    if user.accessLevel == accessLevel.USER:
+        raise HTTPException(status_code=401, detail="Forbidden")
+    place = crud.get_place(db, placeID)
+    if place is None:
+        raise HTTPException(status_code=404, detail="Place not found")
+
+    set_place_visibility(db, placeID, isverified)
+
+@app.patch("/place/{placeID}", response_model=GetPlace, tags=["Places"])
+async def update_item(patch_place: PatchPlace, user: schemas.InternalUser = Depends(get_current_user), db: Session = Depends(get_db)):
+    """
+    Updates a place
+
+    - placeID: the id to fetch. Will always be an integer
+    - plusCode: the optional PlusCode to update. Cannot exceed 100 characters.
+    - friendlyName: the optional friendly name to update. Cannot exceed 100 characters.
+    - country: the optional country to update. Cannot exceed 5 characters.
+    - description: the optional description to update. Cannot exceed 1,000 characters
+
+    Note: Returns a 404 if the place doesn't exist. Returns a 403 if the user is trying to modify someone else's place and is not staff. Staff can modify any place
+    """
+    db_place = crud.get_place(db, patch_place.placeID)
+    if db_place is None:
+        raise HTTPException(status_code=404, detail="Place not found")
+    if user.accessLevel == accessLevel.ADMIN or user.username == db_place.posterID:
+        update_data = patch_place.dict(exclude_unset=True)
+        updated_place = PatchPlace(**jsonable_encoder(db_place.copy(update=update_data)))
+        place = crud.update_place(db, updated_place)
+        return place
+    else:
+        raise HTTPException(status_code=401, detail="Forbidden")
+
+@app.delete("/place/{placeID}", status_code=status.HTTP_200_OK, tags=["Places"])
+def delete_place(placeID: int, user: InternalUser = Depends(get_current_user), db: Session = Depends(get_db)):
+    """
+    Deletes a place
+
+    - placeID: the id to fetch. Will always be an integer
+
+    Note: Returns a 404 if the place doesn't exist. Returns a 403 if the user is trying to delete someone else's place and is not staff. Staff can delete any place
+    """
+    db_place = crud.get_place(db, placeID)
+    if db_place is None:
+        raise HTTPException(status_code=404, detail="Place not found")
+    if user.accessLevel == accessLevel.ADMIN or db_place.posterID == user.username:
+        crud.delete_place(db, placeID=placeID)
     else:
         raise HTTPException(status_code=401, detail="Forbidden")
 
@@ -222,9 +307,17 @@ def delete_place(placeID: int, user: schemas.InternalUser = Depends(get_current_
 
 @app.post("/uploadThumbnails/", status_code=status.HTTP_201_CREATED, tags=["Thumbnails"])
 async def create_upload_file(files: List[UploadFile], placeID: int, db: Session = Depends(get_db), user: schemas.InternalUser = Depends(get_current_user)):
+    """
+    Uploads a series of thumbnails
+
+    - files: the series of files to upload
+    - placeID: the placeID to associate the uploaded files to. Will always be an integer
+
+    Note: Returns a 404 if the place doesn't exist. Returns a 403 if a user tries to upload images to a place they didn't post. Admins can add images to any place
+    """
     place = crud.get_place(db, placeID)
     if place is None:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST)
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Place not found")
     path = Path(STATIC_FILES_DIRECTORY + str(placeID))
     
     if place.posterID == user.username or user.accessLevel == accessLevel.ADMIN:
@@ -233,16 +326,30 @@ async def create_upload_file(files: List[UploadFile], placeID: int, db: Session 
 
 @app.get("/thumbnails/{placeID}", response_model=List[schemas.Thumbnail], tags=["Thumbnails"])
 def get_thumbnails_from_place(placeID: int, db: Session = Depends(get_db)):
+    """
+    Gets the information of a thumbnail
+
+    - imageID: ID of the image to retrieve. Will always be an integer
+
+    Note: Returns a 404 if the image doesn't exist
+    """
     return crud.get_thumbnails_from_place(db, placeID=placeID)
     
 @app.delete("/thumbnails/{thumbnailID}", status_code=status.HTTP_200_OK, tags=["Thumbnails"])
 def delete_thumbnail(imageID: int, user: schemas.InternalUser = Depends(get_current_user), db: Session = Depends(get_db)):
+    """
+    Deletes a thumbnail
+
+    - imageID: the id of the image to delete. Will always be an integer
+
+    Note: Returns a 404 if the image doesn't exist. Returns a 403 if the user is trying to delete someone else's image and is not staff. Staff can delete any image
+    """
     thumbnail = get_thumbnail(db, imageID)
 
     if thumbnail is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Thumbnail not found")
 
-    place = get_place(thumbnail.placeID, db)
+    place = crud.get_place(db, thumbnail.placeID)
 
     if place is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Place not found // YOU SHOULD NEVER SEE THIS")
@@ -252,11 +359,91 @@ def delete_thumbnail(imageID: int, user: schemas.InternalUser = Depends(get_curr
     else:
         raise HTTPException(status_code=401, detail="Forbidden")
 
+
+# =============================================================================== RATINGS
+
+
+@app.post("/create/rating", response_model=schemas.GetRating, status_code=status.HTTP_201_CREATED, tags=["Ratings"])
+def create_rating(rating: SetRating, user: schemas.InternalUser = Depends(get_current_user), db: Session = Depends(get_db)):
+    """
+    Create a comment with all the information:
+
+    - plusCode: Unique identifier for use with Google Maps. Cannot exceed 100 characters.
+    - friendlyName: Coloquial name of location. Cannot exceed 100 characters.
+    - country: 2 or 3 character ISO country code. Cannot exceed 5 characters.
+    - description: Small bio of location. Cannot exceed 1,000 characters.
+
+    Note: Returns a 400 if the rating value is below 1 or above 5. Returns a 404 if the place being rated doesn't exist. Returns a 403 if user has already rated the place
+    """
+    # Checks if place exists and rating is within range
+    place = crud.get_place(db, rating.placeID)
+    if rating.ratingValue < 1 or rating.ratingValue > 5:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Rating must be between 1 and 5")
+    elif place is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Place not found")
+
+    # Checks if user has rated before
+    ratings = get_user_ratings(db, user)
+    # Depending on frontend requirements, could replace 400 with automatic rating update
+    for i in ratings:
+        if i.placeID == rating.placeID:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="User already rated this place")
+
+    return crud.create_rating(db, rating, user)
+
+@app.patch("/rating/{ratingID}", response_model=GetRating, tags=["Ratings"])
+async def update_rating(ratingID: int, patch_rating: PatchRating, user: schemas.InternalUser = Depends(get_current_user), db: Session = Depends(get_db)):
+    """
+    Updates a rating
+
+    - ratingID: the id to fetch. Will always be an integer
+    - ratingValue: the optional rating to update. Must be between 1 and 5 and an integer.
+    - comment: the optional comment body to update. Cannot exceed 1,000 characters.
+
+    Note: Returns a 404 if the rating doesn't exist. Returns a 403 if the user is trying to modify someone else's rating.
+    """
+    db_rating = crud.get_rating(db, ratingID)
+    if db_rating is None:
+        raise HTTPException(status_code=404, detail="Place not found")
+    if user.username == db_rating.username:
+        # Taken from the FastAPI docs regarding partial data updates. Idk how it works but it does
+        update_data = patch_rating.dict(exclude_unset=True)
+        update_rating = SetRating(**jsonable_encoder(db_rating.copy(update=update_data)))
+        rating = crud.update_rating(db, update_rating)
+        return rating
+    else:
+        raise HTTPException(status_code=401, detail="Forbidden")
+
+@app.delete("/rating/{ratingID}", status_code=status.HTTP_200_OK, tags=["Ratings"])
+def delete_rating(ratingID: int, user: InternalUser = Depends(get_current_user), db: Session = Depends(get_db)):
+    """
+    Deletes a rating
+
+    - ratingID: the id to fetch. Will always be an integer
+
+    Note: Returns a 404 if the rating doesn't exist. Returns a 403 if the user is trying to delete someone else's rating and is not staff. Staff can delete any rating
+    """
+    db_rating = crud.get_rating(db, ratingID)
+    if db_rating is None:
+        raise HTTPException(status_code=404, detail="Rating not found")
+    if user.accessLevel == accessLevel.ADMIN or db_rating.username == user.username:
+        crud.delete_rating(db, ratingID)
+    else:
+        raise HTTPException(status_code=401, detail="Forbidden")
+
+
 # =============================================================================== SECURITY
 
 
 @app.post("/login", tags=["Security"])
 async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+    """
+    Generates a user ACCOUNT token.
+
+    - Requires OAuth2 form data to be sent
+
+    Note: Returns a 400 if either the username or password are incorrect.
+    """
     user = crud.get_user(db, form_data.username)
     if not user:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Incorrect username or password")
@@ -270,16 +457,26 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = 
 
 @app.post("/refreshToken", response_model=schemas.InternalUser, tags=["Security"])
 async def login(user: schemas.InternalUser = Depends(get_current_user), db: Session = Depends(get_db)):
+    """
+    Attempts to refresh the logged in user's token
+
+    - Tokens expire 15 minutes after they've either been issued initially or refreshed with this endpoint
+
+    Note: Returns a 400 if the token has expired. Requires reauthentication.
+    """
     if not crud.refresh_token_by_user(db, user):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Bad token")
 
 
 # =============================================================================== DEBUG
 
-@app.get("/", tags=["Debug"])
+@app.get("/", tags=["Debug"], deprecated=True)
 async def debug():
+    """
+    Used for development to test functionality that requires an endpoint. Non functional
+    """
     path = os.getcwd()
     print("Current directory", path)
     print()
-    parent = os.path.dirname(path)
+    parent = os.scandir(path)
     print("Parent directory", parent)
