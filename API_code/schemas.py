@@ -46,20 +46,23 @@ class Comment(Rating):
     commentBody: str
 
 class Thumbnail(BaseModel):
-    imageURL: str
+    imageID: int
     uploader: str
     placeID: int
+    externalURL: str
     uploadDate: datetime
 
     class Config:
         orm_mode=True
+
+class InternalThumbnail(Thumbnail):
+    internalURL: str
 
 class SetPlace(BaseModel):
     plusCode: str
     friendlyName: str
     country: Optional[str]
     description: Optional[str]
-    rating: float
 
     class Config:
         orm_mode=True
@@ -67,5 +70,7 @@ class SetPlace(BaseModel):
 class GetPlace(SetPlace):
     placeID: int
     posterID: str
+    rating: float
     thumbnails: Optional[List[Thumbnail]]
     comments: Optional[List[Comment]]
+    

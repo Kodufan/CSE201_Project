@@ -47,9 +47,9 @@ class Thumbnail(Base):
     imageID = Column(Integer, primary_key=True, autoincrement=True)
     uploader = Column(String(20), nullable=False)
     placeID = Column(Integer, ForeignKey("places.placeID"))
-    imageURL = Column(String(200), nullable=False)
+    externalURL = Column(String(200), nullable=False)
+    internalURL = Column(String(200), nullable=False)
     uploadDate = Column(DateTime, nullable=False)
-    
 
 class Token(Base):
     __tablename__ = "tokens"
