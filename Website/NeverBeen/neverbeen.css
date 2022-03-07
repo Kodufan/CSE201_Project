@@ -1,0 +1,309 @@
+*{
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html{
+    font: normal 16px sans-serif;
+    color: #555;
+}
+
+nav {
+    list-style: none;
+}
+
+a{
+    text-decoration: none;
+    opacity: 0.75;
+    color: #fff;
+}
+
+
+.grid {
+    width: 100%;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    list-style: none;
+
+}
+
+hr {
+    width: 250px;
+    height: 3px;
+    background-color: white;
+    border: 0;
+    margin-bottom: 50px;
+}
+
+section h3.title {
+    text-transform: capitalize;
+    font: bold 32px "open Sans", sans-serif;
+    margin-bottom: 30px;
+    text-align: center;
+}
+
+
+section p {
+    max-width: 775;
+    line-height: 2;
+    padding: 0 20px;
+    margin-bottom: 30px;
+    text-align: center;
+}
+
+a.btn {
+    border-radius: 4px;
+    text-transform: uppercase;
+    font-weight: bold;
+    text-align: center;
+    background-color: LightBlue;
+    opacity: 1;
+}
+
+section {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 100px 80px;
+}
+
+section:not(.hero):nth-child(even){
+    background-color: white;
+}
+
+@media (max-width: 800px) {
+    section {
+        padding: 50px 20px;
+    }
+}
+/*Header Styles */
+
+header {
+    position: absolute;
+    width: 100%;
+    color: #fff;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 35px 100px 0;
+    animation: 1s fadein 0.5s forwards;
+    opacity: 0;
+}
+.T2{
+  animation: 1s fadein 0.5s forwards;
+  opacity: 0;
+}
+@keyframes fadein {
+    100% {
+        opacity: 1;
+    }
+}
+
+header h2 {
+    font-family: "Quicksand", sans-serif;
+}
+
+header nav {
+    display: flex;
+    margin-right: -15px;
+}
+
+header nav li{
+    margin: 0 15px;
+
+}
+
+@media (max-width: 800px) {
+    header {
+        padding: 20px 50px;
+        flex-direction: column;
+    }
+    header h2 {
+        margin-bottom: 12px;
+    }
+}
+
+/*Hero Styles*/
+
+.hero {
+    position: relative;
+    justify-content: center;
+    text-align: center;
+    min-height: 100vh;
+    color: white;
+}
+
+.hero .background-image {
+    position:fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-size: contain;
+    z-index: -1;
+    background-color: white;
+}
+.hero h1 {
+    font: bold 60px "Open Sans", sans-serif;
+    margin-bottom: 15px;
+}
+
+.hero h3 {
+    font: bold 28px "Open Sans", sans-serif;
+    margin-bottom: 40px;
+    color: LightBlue;
+
+}
+h3{
+  color: White;
+}
+h4{
+  color: black;
+}
+p{
+  color: black;
+}
+.x{
+  color:black;
+    font: bold 12px "Arial", sans-serif;
+}
+.hero a.btn {
+    padding: 20px 46px;
+}
+
+.hero-content-area {
+    opacity: 0;
+    margin-top: 100px;
+    animation: 1s slidefade 1s forwards;
+}
+
+@keyframes slidefade {
+    100% {
+        opacity: 1;
+        margin-top: 0px;
+    }
+}
+
+
+@media (max-width: 800px) {
+    .destinations .grid li.small,
+    .destinations .grid li.large {
+        flex-basis: 100%;
+    }
+
+}
+
+/*Packages Section*/
+
+.packages .grid li {
+    padding: 50px;
+    flex-basis: 50%;
+    text-align: center;
+}
+
+.packages.grid img{
+  height:200px;
+  width: 200px;
+}
+
+.packages .grid li h4 {
+    font-size: 30px;
+    margin: 25px 0;
+}
+
+.places .grid li {
+    padding: 40px;
+    flex-basis: 50%;
+    text-align: center;
+
+}
+
+.places .grid li h4 {
+    font-size: 30px;
+    margin: 15px 0;
+}
+
+
+.container{
+  margin: 20px auto;
+  width:500px;
+  height:500px;
+  background-color:#fff;
+  display:grid;
+  grid-template-columns: 100px 300px;
+  grid-row: auto auto;
+  grid-column-gap: 20px;
+  grid-row-gap: 20px;
+}
+.container.grid h4{
+  font-size: 10px:
+}
+
+.container.grid li{
+  background-color: white;
+}
+
+
+
+
+.img{
+  height: 200px;
+  width:200px;
+}
+
+.pc{
+  height: 300px;
+  width: 510px;
+  border-radius: 5%;
+}
+
+.T2 h1{
+  color: black;
+  font: bold 40px "Arial", sans-serif;
+  text-align: center;
+}
+.T2{
+  border-radius: 5%;
+  background-color: White;
+  height: 40px;
+  padding: 0px;
+}
+
+.ptg{
+  text-align: center;
+  color: white;
+  font: bold 28px "open Sans";
+
+  height: 110px;
+  width: 450px;
+  border-radius: 6%;
+}
+
+.ptg1{
+  text-align: center;
+  color: White;
+  font: bold 28px "open Sans";
+
+  height: 50px;
+  width: 400px;
+  border-radius: 6%;
+}
+
+.pkgHeader{
+    text-align: center;
+      font: bold 38px "open Sans";
+    color: Black;
+    padding-bottom: 40px;
+}
+h1{
+  text-align: center;
+  color: white;
+}
+
+.contact p{
+  color: white;
+}
+
+}
