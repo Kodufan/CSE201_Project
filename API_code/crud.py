@@ -22,6 +22,9 @@ from schemas import PatchPlace, accessLevel, visibility, tokenType
 def get_user(db: Session, username: str):
     return db.query(models.User).filter(models.User.username == username).first()
 
+def get_email(db: Session, email: str):
+    return db.query(models.User).filter(models.User.email == email).first()
+
 def get_user_info(db: Session, username: str):
     db_user = get_user(db, username)
     if db_user is not None:
@@ -55,6 +58,9 @@ def create_user(db: Session, user: schemas.CreateUser):
 
     if get_user(db, user.username) is not None:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Username is taken")
+    
+    if get_email(db, user.email) is not None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email is taken")
 
     db_user = models.User(
         username=user.username, 
@@ -339,7 +345,7 @@ def hash_password(password: str):
     return hashlib.sha256(password.encode('utf-8')).hexdigest()
 
 def get_token_by_user(db: Session, username: str, type: models.tokenType):
-    return db.query(models.Token).filter(models.Token.username == username).first()
+    return db.query(models.Token).filter(models.Token.username == username).filter(models.Token.type == type).first()
 
 def get_token_by_token(db: Session, token: str):
     return db.query(models.Token).filter(models.Token.token == token).first()
@@ -397,8 +403,8 @@ def refresh_token_by_user(db: Session, user: schemas.InternalUser):
     return db_token
 
 def verify_account(db: Session, token: str):
-    username = get_token_by_token(db, token).username
-    user = db.query(models.User).filter(models.User.username == username).first()
-    print(user)
+    user = get_user_from_token(db, token)
+    token_obj = get_token_by_token(db, token)
     user.verified = True
+    db.delete(token_obj)
     db.commit()

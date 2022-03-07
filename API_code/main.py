@@ -6,6 +6,7 @@ from fastapi import Depends, FastAPI, HTTPException, UploadFile
 from fastapi.encoders import jsonable_encoder
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import RedirectResponse
 from apihelper import send_verification_email
 from openlocationcode import isFull
 import crud
@@ -70,6 +71,8 @@ except:
 # This method returns the current user from a token
 async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
     user = decode_token(db, token)
+    if user.verified == False:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Account has not been verified")
     return user
 
 
@@ -85,9 +88,12 @@ def create_user(user: CreateUser, db: Session = Depends(get_db)):
     - username: this must not exceed 20 characters or match another username
     - email: this unique identifier must not exceed 100 characters
     - rawpassword: this will be the password. Stored hashed with SHA-256
+
+    Note: Returns a 404 if either the username or emails are taken.
     """
     user = crud.create_user(db, user)
-    send_verification_email(db, user)
+    token = crud.create_token(db, user.username, tokenType.VERIFICATION)
+    send_verification_email(user, token)
     return user
 
 @app.post("/setUserPerms", response_model=schemas.User, status_code=status.HTTP_200_OK, tags=["Users"])
@@ -451,6 +457,8 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = 
     Note: Returns a 400 if either the username or password are incorrect.
     """
     user = crud.get_user(db, form_data.username)
+    if user.verified == False:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Account has not been verified")
     if not user:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Incorrect username or password")
     hashed_password = crud.hash_password(form_data.password)
@@ -486,7 +494,28 @@ async def login(token: str, db: Session = Depends(get_db)):
     if not token and not token_obj.type == tokenType.VERIFICATION:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Bad token")
     verify_account(db, token)
-    return "Account verified! You may close this tab"
+
+@app.post("/verify/{email}", status_code=status.HTTP_200_OK, tags=["Security"])
+async def login(email: str, db: Session = Depends(get_db)):
+    """
+    Resends verification email
+
+    - email: email to resend to
+
+    Note: Returns a 404 if the email has no associated token.
+    """
+    user = crud.get_email(db, email)
+    
+    if user is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User with that email does not exist")
+
+    token = crud.get_token_by_user(db, user.username, tokenType.VERIFICATION)
+
+    if token is None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="User already verified")
+
+    send_verification_email(db, user, token.token)
+
 
 # =============================================================================== DEBUG
 
@@ -495,8 +524,4 @@ async def debug():
     """
     Used for development to test functionality that requires an endpoint. Non functional
     """
-    path = os.getcwd()
-    print("Current directory", path)
-    print()
-    parent = os.scandir(path)
-    print("Parent directory", parent)
+    return RedirectResponse("https://www.google.com/search?q=how+are+mind+work")

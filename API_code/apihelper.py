@@ -49,45 +49,18 @@ async def write_files(filePath: Path, files: List[UploadFile], existing_urls: Li
 def decode_token(db, token: str):
     return crud.get_user_from_token(db, token)
 
-def send_verification_email(db: Session, user: InternalUser):
+def send_verification_email(user: InternalUser, token: str):
     ssl_context = ssl.create_default_context()
     service = smtplib.SMTP_SSL(DOMAIN, PORT, context=ssl_context)
     service.login(EMAIL, PASSWORD)
 
-    token = crud.create_token(db, user.username, tokenType.VERIFICATION)
-
     msg = f"""
-Thanks for taking the first step in going somewhere you've NeverBeen before!<br>
-Please verify your account <a href="{SERVER_IP}verify/{token}">here</a><br><br>
+Thanks for taking the first step in going on a trip to somewhere you've NeverBeen before!<br>
+Please verify your account <a href="https://ceclnx01.cec.miamioh.edu/~duvalljc/index.html?token={token}">here</a><br><br>
 Thanks,
 NeverBeen."""
     msgMIME = MIMEText(msg,'html')
-    print(token)
     result = service.sendmail(EMAIL, user.email, "Subject: Please verify your NeverBeen account!\n" + msgMIME.as_string())
 
     service.quit()
     return
-
-
-
-
-class Mail:
-
-    def send(self, emails, subject, content):
-        ssl_context = ssl.create_default_context()
-        service = smtplib.SMTP_SSL(self.smtp_server_domain_name, self.port, context=ssl_context)
-        service.login(self.sender_mail, self.password)
-        
-        for email in emails:
-            result = service.sendmail(self.sender_mail, email, f"Subject: {subject}\n{content}")
-
-        service.quit()
-
-
-if __name__ == '__main__':
-    mails = input("Enter emails: ").split()
-    subject = input("Enter subject: ")
-    content = input("Enter content: ")
-
-    mail = Mail()
-    mail.send(mails, subject, content)

@@ -9,8 +9,8 @@ from schemas import accessLevel, tokenType
 class User(Base):
     __tablename__ = "users"
 
-    username = Column(String(20), nullable=False, unique=True)
-    email = Column(String(100), primary_key=True)
+    username = Column(String(20), primary_key=True)
+    email = Column(String(100), unique=True)
     verified = Column(Boolean, nullable=False)
     hashed_password = Column(String(100), nullable=False)
     accessLevel = Column(Enum(accessLevel), nullable=False)
