@@ -16,8 +16,6 @@ class User(Base):
     accessLevel = Column(Enum(accessLevel), nullable=False)
     accountCreated = Column(DateTime)
 
-    #items = relationship("Item", back_populates="owner")
-
 class Place(Base):
     __tablename__ = "places"
 
@@ -29,8 +27,6 @@ class Place(Base):
     description = Column(String(1000))
     rating = Column(Float)
     isvisible = Column(Boolean, nullable=False)
-
-    #owner = relationship("User", back_populates="items")
 
 class Comment(Base):
     __tablename__ = "comments"

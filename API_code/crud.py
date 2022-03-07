@@ -305,14 +305,29 @@ def update_rating(db: Session, rating: schemas.GetRating):
     db.commit()
     return db_rating
 
-def get_rating(db: Session, ratingID = int):
+def get_rating(db: Session, ratingID: int):
+    rating = db.query(models.Comment).filter(models.Comment.ratingID == ratingID).first()
+
+    if rating is not None:
+        return_rating = schemas.GetRating(
+                ratingID=rating.ratingID,
+                placeID=rating.placeID,
+                ratingValue=rating.ratingValue,
+                commentBody=rating.commentBody,
+                username=rating.username,
+                timePosted=rating.timePosted,
+                timeEdited=rating.timeEdited
+            )
+        return return_rating
+
+def get_rating_pointer(db: Session, ratingID = int):
     return db.query(models.Comment).filter(models.Comment.ratingID == ratingID).first()
 
 def get_user_ratings(db: Session, user: schemas.InternalUser):
     return db.query(models.Comment).filter(models.Comment.username == user.username).all()
 
 def delete_rating(db: Session, ratingID: int):
-    rating = get_rating(db, ratingID)
+    rating = get_rating_pointer(db, ratingID)
     placeID = rating.placeID
     db.delete(rating)
     db.commit()

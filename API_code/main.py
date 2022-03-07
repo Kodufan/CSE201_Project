@@ -382,12 +382,12 @@ async def update_rating(ratingID: int, patch_rating: PatchRating, user: schemas.
     """
     db_rating = crud.get_rating(db, ratingID)
     if db_rating is None:
-        raise HTTPException(status_code=404, detail="Place not found")
+        raise HTTPException(status_code=404, detail="Rating not found")
     if user.username == db_rating.username:
         # Taken from the FastAPI docs regarding partial data updates. Idk how it works but it does
         update_data = patch_rating.dict(exclude_unset=True)
-        update_rating = SetRating(**jsonable_encoder(db_rating.copy(update=update_data)))
-        rating = crud.update_rating(db, update_rating)
+        updated_rating = GetRating(**jsonable_encoder(db_rating.copy(update=update_data)))
+        rating = crud.update_rating(db, updated_rating)
         return rating
     else:
         raise HTTPException(status_code=401, detail="Forbidden")
@@ -401,7 +401,7 @@ def delete_rating(ratingID: int, user: InternalUser = Depends(get_current_user),
 
     Note: Returns a 404 if the rating doesn't exist. Returns a 403 if the user is trying to delete someone else's rating and is not staff. Staff can delete any rating
     """
-    db_rating = crud.get_rating(db, ratingID)
+    db_rating = crud.get_rating_pointer(db, ratingID)
     if db_rating is None:
         raise HTTPException(status_code=404, detail="Rating not found")
     if user.accessLevel == accessLevel.ADMIN or db_rating.username == user.username:
