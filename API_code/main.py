@@ -514,7 +514,7 @@ async def login(email: str, db: Session = Depends(get_db)):
     if token is None:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="User already verified")
 
-    send_verification_email(db, user, token.token)
+    send_verification_email(user, token.token)
 
 
 # =============================================================================== DEBUG
