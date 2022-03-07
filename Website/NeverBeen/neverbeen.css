@@ -70,7 +70,7 @@ section {
 }
 
 section:not(.hero):nth-child(even){
-    background-color: lightBlue;
+    background-color: white;
 }
 
 @media (max-width: 800px) {
@@ -104,14 +104,6 @@ header {
 header h2 {
     font-family: "Quicksand", sans-serif;
 }
-.header input [type=text]{
-  float: right;
-   padding: 6px;
-   border: none;
-   margin-top: 8px;
-   margin-right: 16px;
-   font-size: 17px;
-}
 
 header nav {
     display: flex;
@@ -144,7 +136,7 @@ header nav li{
 }
 
 .hero .background-image {
-    position: absolute;
+    position:fixed;
     top: 0;
     left: 0;
     width: 100%;
@@ -153,7 +145,6 @@ header nav li{
     z-index: -1;
     background-color: white;
 }
-.hero.background-image img{}
 .hero h1 {
     font: bold 60px "Open Sans", sans-serif;
     margin-bottom: 15px;
@@ -282,9 +273,9 @@ p{
 
 .ptg{
   text-align: center;
-  color: black;
+  color: white;
   font: bold 28px "open Sans";
-  background-color: White;
+
   height: 110px;
   width: 450px;
   border-radius: 6%;
@@ -292,9 +283,9 @@ p{
 
 .ptg1{
   text-align: center;
-  color: black;
+  color: White;
   font: bold 28px "open Sans";
-  background-color: White;
+
   height: 50px;
   width: 400px;
   border-radius: 6%;
@@ -303,10 +294,16 @@ p{
 .pkgHeader{
     text-align: center;
       font: bold 38px "open Sans";
-    color: black;
+    color: Black;
     padding-bottom: 40px;
 }
+h1{
+  text-align: center;
+  color: white;
+}
 
-
+.contact p{
+  color: white;
+}
 
 }
