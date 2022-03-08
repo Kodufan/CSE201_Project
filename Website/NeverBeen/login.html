@@ -1,0 +1,50 @@
+<html>
+  
+<link rel="stylesheet" href="neverbeen.css" />
+
+<body>
+
+  <!-- Navigation bar -->
+  <header>
+    <h2><a href="neverbeen.html">NeverBeen</a></h2>
+    <nav>
+      <li><a href="#">Top Rated Locations</a></li>
+      <li><a href="#">Search</a></li>
+      <li><a href="#">Login/Signup</a></li>
+    </nav>
+  </header>
+  <hr>
+  <section class="hero">
+    <div class="background-image"> <img src="bg2.png" alt="background"> </div>
+    <div class="hero-content-area">
+
+      <!-- Beginning of Login form -->
+      <form action="action_page.php" method="post">
+        <!-- <div class="imgcontainer">
+          <img src="img_avatar2.png" alt="Avatar" class="avatar">
+        </div> -->
+
+        <div class="login-container">
+          <!-- Username -->
+          <label for="uname"><b>Username</b></label>
+          <input type="text" placeholder="Enter Username" name="uname" required>
+          <!-- Password -->
+          <label for="psw"><b>Password</b></label>
+          <input type="password" placeholder="Enter Password" name="psw" required>
+          <!-- Login button -->
+          <button type="submit">Login</button>
+          <!-- "Remember me" checkbox -->
+          <label>
+            <input type="checkbox" checked="checked" name="remember"> Remember me
+          </label>
+        </div>
+
+        <div class="login-container">
+          <span class="psw"><a href="#">Forgot password?</a></span>
+        </div>
+      </form>
+    </div>
+  </section>
+
+</body>
+</html>
