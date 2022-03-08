@@ -2,21 +2,21 @@ import os
 from pathlib import Path
 from typing import List
 
-from fastapi import Depends, FastAPI, HTTPException, UploadFile
+from fastapi import Depends, FastAPI, HTTPException, Request, UploadFile
 from fastapi.encoders import jsonable_encoder
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import RedirectResponse
-from apihelper import send_verification_email
-from openlocationcode import isFull
+
 import crud
-from apihelper import decode_token, get_db, write_files
+from apihelper import (decode_token, get_db, send_reset_email,
+                       send_verification_email, write_files)
 from config import STATIC_FILES_DIRECTORY
 from crud import *
 from database import engine
 from models import *
+from openlocationcode import isFull
 from schemas import *
-from schemas import accessLevel, placeOrder, visibility, tokenType
+from schemas import accessLevel, placeOrder, tokenType, visibility
 
 # Dict of tags and their descriptions to break the OpenAPI docs into sections
 tags_metadata = [
@@ -470,7 +470,7 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = 
     return {"access_token": access_token, "token_type": "bearer"}
 
 @app.post("/refreshToken", response_model=schemas.InternalUser, tags=["Security"])
-async def login(user: schemas.InternalUser = Depends(get_current_user), db: Session = Depends(get_db)):
+async def refresh_token(user: schemas.InternalUser = Depends(get_current_user), db: Session = Depends(get_db)):
     """
     Attempts to refresh the logged in user's token
 
@@ -481,8 +481,8 @@ async def login(user: schemas.InternalUser = Depends(get_current_user), db: Sess
     if not crud.refresh_token_by_user(db, user):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Bad token")
 
-@app.get("/verify/{token}", status_code=status.HTTP_200_OK, tags=["Security"])
-async def login(token: str, db: Session = Depends(get_db)):
+@app.get("/verify", status_code=status.HTTP_200_OK, tags=["Security"])
+async def verify_token(token: str, db: Session = Depends(get_db)):
     """
     Attempts to verify a user account given a VERIFICATION type token
 
@@ -495,8 +495,8 @@ async def login(token: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Bad token")
     verify_account(db, token)
 
-@app.post("/verify/{email}", status_code=status.HTTP_200_OK, tags=["Security"])
-async def login(email: str, db: Session = Depends(get_db)):
+@app.post("/verify", status_code=status.HTTP_200_OK, tags=["Security"])
+async def verify_email(email: str, db: Session = Depends(get_db)):
     """
     Resends verification email
 
@@ -516,7 +516,46 @@ async def login(email: str, db: Session = Depends(get_db)):
 
     send_verification_email(user, token.token)
 
+@app.post("/forgotpassword", status_code=status.HTTP_200_OK, tags=["Security"])
+async def forgot_password(email: str, request: Request, db: Session = Depends(get_db)):
+    """
+    Sends an email containing a token to reset an account password
 
+    - email: email to resend to
+
+    Note: Returns a 404 if the email has no associated token.
+    """
+    user = crud.get_email(db, email)
+    
+    if user is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User with that email does not exist")
+
+    token = crud.get_token_by_user(db, user.username, tokenType.PASSRESET)
+    if token is not None:
+        db.delete(token)
+        db.commit()
+
+    token = crud.create_token(db, user.username, tokenType.PASSRESET)
+    requesting_ip = request.client.host
+    send_reset_email(user, token, requesting_ip)
+
+@app.get("/resetpassword", status_code=status.HTTP_200_OK, tags=["Security"])
+async def verify_token(token: str, new_password: str, db: Session = Depends(get_db)):
+    """
+    Attempts to reset a user account password given a PASSRESET type token
+
+    - PASSRESET tokens expire after 24 hours
+
+    Note: Returns a 400 if the token is invalid.
+    """
+    token_obj = crud.get_token_by_token(db, token)
+    if token_obj is None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Bad token")
+    elif token_obj.expires < datetime.now() or not token_obj.type == tokenType.PASSRESET:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Bad token")
+    reset_password(db, new_password, token)
+    db.delete(token_obj)
+    db.commit
 # =============================================================================== DEBUG
 
 @app.get("/", tags=["Debug"], deprecated=True)
@@ -524,4 +563,11 @@ async def debug():
     """
     Used for development to test functionality that requires an endpoint. Non functional
     """
-    return RedirectResponse("https://www.google.com/search?q=how+are+mind+work")
+    import ipinfo
+
+    from secret_config import IPINFO_ACCESS_TOKEN
+    ip = "134.53.116.212"
+    handler = ipinfo.getHandler(IPINFO_ACCESS_TOKEN)
+    response = handler.getDetails(ip).all
+    
+    return response

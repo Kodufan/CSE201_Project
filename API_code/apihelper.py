@@ -1,15 +1,18 @@
+import smtplib
+import ssl
 from email.mime.text import MIMEText
-import crud
-from shutil import copyfileobj
-from fastapi import Depends, UploadFile, HTTPException, status
-from pathlib2 import PurePosixPath
-from sqlalchemy.orm import Session
 from pathlib import Path
+from shutil import copyfileobj
 from typing import List
+
+import ipinfo
+from fastapi import Depends, HTTPException, UploadFile, status
+from pathlib2 import PurePosixPath
+
+import crud
 from config import ACCEPTABLE_FILE_EXTENSIONS, SERVER_IP
 from database import SessionLocal
-from schemas import InternalUser, tokenType
-import smtplib, ssl
+from schemas import InternalUser
 from secret_config import *
 
 
@@ -61,6 +64,32 @@ Thanks,
 NeverBeen."""
     msgMIME = MIMEText(msg,'html')
     result = service.sendmail(EMAIL, user.email, "Subject: Please verify your NeverBeen account!\n" + msgMIME.as_string())
+
+    service.quit()
+    return
+
+def send_reset_email(user: InternalUser, token: str, ip: str):
+    ssl_context = ssl.create_default_context()
+    service = smtplib.SMTP_SSL(DOMAIN, PORT, context=ssl_context)
+    service.login(EMAIL, PASSWORD)
+
+    # Since Miami uses internal IPs, this information won't respond properly
+    # handler = ipinfo.getHandler(IPINFO_ACCESS_TOKEN)
+    # response = handler.getDetails(ip)
+    # response_dict = response.all
+    # print(response_dict)
+    # city = response_dict["city"]
+    # region = response_dict["region"]
+    # country = response_dict["country_name"]
+
+    msg = f"""
+Your account has requested a password reset request<br><br>
+If this was you, please reset your account <a href="https://ceclnx01.cec.miamioh.edu/~duvalljc/index.html?resetpassword={token}">here</a>.
+This link is valid for 24 hours.<br><br>
+Thanks,<br>
+NeverBeen."""
+    msgMIME = MIMEText(msg,'html')
+    result = service.sendmail(EMAIL, user.email, "Subject: NeverBeen password reset!\n" + msgMIME.as_string())
 
     service.quit()
     return

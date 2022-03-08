@@ -5,7 +5,6 @@ import string
 from datetime import datetime, timedelta
 from typing import List
 
-from openlocationcode import isFull, decode
 from fastapi import HTTPException, status
 from sqlalchemy import desc
 from sqlalchemy.orm import Session
@@ -15,7 +14,8 @@ import schemas
 from config import (ACCESS_TOKEN_DELTA_MINUTES, SERVER_IP,
                     STATIC_FILES_DIRECTORY, TOKEN_LENGTH)
 from latlonhelper import distance
-from schemas import PatchPlace, accessLevel, visibility, tokenType
+from openlocationcode import decode, isFull
+from schemas import PatchPlace, accessLevel, tokenType, visibility
 
 # =============================================================================== USERS
 
@@ -386,10 +386,16 @@ def create_token(db: Session, username: str, type: models.tokenType):
     db_token = models.Token(
         username=username,
         type=type,
-        token=token,
-        expires=(datetime.now() + timedelta(minutes=ACCESS_TOKEN_DELTA_MINUTES))
+        token=token
     )
 
+    if type == tokenType.ACCOUNT:
+        db_token.expires = datetime.now() + timedelta(minutes=ACCESS_TOKEN_DELTA_MINUTES)
+    if type == tokenType.PASSRESET:
+        db_token.expires = datetime.now() + timedelta(days=1)
+    if type == tokenType.VERIFICATION:
+        # This value isn't used as verification tokens don't check if expired.
+        db_token.expires = datetime.now()
 
     # Makes sure that it never uses the same token more than once in the DB.
     while True:
@@ -422,4 +428,9 @@ def verify_account(db: Session, token: str):
     token_obj = get_token_by_token(db, token)
     user.verified = True
     db.delete(token_obj)
+    db.commit()
+
+def reset_password(db: Session, password: str, token: str):
+    user = get_user_from_token(db, token)
+    user.hashed_password = hash_password(password)
     db.commit()

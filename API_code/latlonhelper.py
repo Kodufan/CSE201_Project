@@ -1,4 +1,5 @@
-from math import cos, asin, sqrt, pi
+from math import asin, cos, pi, sqrt
+
 # Taken from https://stackoverflow.com/questions/27928/calculate-distance-between-two-latitude-longitude-points-haversine-formula
 
 def distance(lat1, lon1, lat2, lon2):
