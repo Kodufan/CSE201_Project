@@ -148,7 +148,7 @@ def list_users(skip: int = 0, limit: int = 100, user: schemas.InternalUser = Dep
     return users
 
 @app.delete("/user/", status_code=200, tags=["Users"])
-def delete_user(user: schemas.InternalUser = Depends(get_current_user), db: Session = Depends(get_db)):
+def delete_user(username: str, user: schemas.InternalUser = Depends(get_current_user), db: Session = Depends(get_db)):
     """
     Deletes a user
 
@@ -156,15 +156,15 @@ def delete_user(user: schemas.InternalUser = Depends(get_current_user), db: Sess
 
     Note: Returns a 404 if the user doesn't exist. Returns a 403 if the user is trying to delete someone else and is not an admin. Admins can delete any user that isn't an admin, but can delete themselves.
     """
-    db_user = crud.get_user(db, username=user.username)
+    db_user = crud.get_user(db, username)
     if db_user is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
-
     if db_user == user:
         crud.delete_user(db, username=user.username)
     elif user.accessLevel == accessLevel.ADMIN and db_user.accessLevel != accessLevel.ADMIN:
         crud.delete_user(db, username=user.username)
-    raise HTTPException(status_code=status.HTTP_403_FORBIDDEN)
+    else:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN)
 
 
 # =============================================================================== PLACES
@@ -302,14 +302,14 @@ async def create_upload_file(files: List[UploadFile], placeID: int, db: Session 
         return add_thumbnail_urls(db, await write_files(path, files, get_thumbnail_urls(db, placeID)), placeID, user)
     raise HTTPException(status_code=status.HTTP_403_FORBIDDEN)
 
-@app.get("/thumbnails/{placeID}", response_model=List[schemas.Thumbnail], tags=["Thumbnails"])
+@app.get("/thumbnails/{placeID}", response_model=List[schemas.Thumbnail], tags=["Thumbnails"], deprecated=True)
 def get_thumbnails_from_place(placeID: int, db: Session = Depends(get_db)):
     """
     Gets the information of a thumbnail
 
     - imageID: ID of the image to retrieve. Will always be an integer
 
-    Note: Returns a 404 if the image doesn't exist
+    Note: Returns a 404 if the image doesn't exist. Marked deprecated as getting a place also returns a list of thumbnails
     """
     return crud.get_thumbnails_from_place(db, placeID=placeID)
     
@@ -457,10 +457,10 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = 
     Note: Returns a 400 if either the username or password are incorrect.
     """
     user = crud.get_user(db, form_data.username)
-    if user.verified == False:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Account has not been verified")
     if not user:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Incorrect username or password")
+    if user.verified == False:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Account has not been verified")
     hashed_password = crud.hash_password(form_data.password)
     if not hashed_password == user.hashed_password:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Incorrect username or password")

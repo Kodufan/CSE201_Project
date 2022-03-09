@@ -50,7 +50,11 @@ def get_user_from_token(db: Session, token: str):
     raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Expired token")
 
 def get_users(db: Session, skip: int = 0, limit: int = 100):
-    return db.query(models.User).offset(skip).limit(limit).all()
+    usernames = db.query(models.User).offset(skip).limit(limit).all()
+    output = list()
+    for user in usernames:
+        output.append(get_user_info(db, user.username))
+    return output
 
 def create_user(db: Session, user: schemas.CreateUser):
     hashed_password = hash_password(user.rawPassword)
@@ -189,7 +193,6 @@ def get_places_by_distance(db: Session, latitude: int, longitude: int, skip: int
             comments=db.query(models.Comment).filter(models.Comment.placeID == i.placeID).all()
         )
         places_dict_unsorted[dist] = new_place
-        print(dist)
     for i in sorted(places_dict_unsorted):
         places_dict_sorted[i] = places_dict_unsorted[i]
     return_list = list(places_dict_sorted.values())
@@ -204,7 +207,6 @@ def get_places_from_user(db: Session, user: schemas.InternalUser):
     return return_places
 
 def update_place(db: Session, place: PatchPlace):
-    print(type(place))
     db_place = db.query(models.Place).filter(models.Place.placeID == place.placeID).first()
     db_place.plusCode = place.plusCode
     db_place.friendlyName = place.friendlyName
@@ -348,7 +350,6 @@ def update_score(db: Session, placeID: int):
     if len(ratingValues) == 0:
         place.rating = -1
     else:
-        print("SUM: " + str(sum) + "\nLENGTH: " + str(len(ratings)))
         place.rating = round((sum / (len(ratingValues))), 1)
     db.commit()
 
