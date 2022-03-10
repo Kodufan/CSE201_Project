@@ -140,7 +140,6 @@ def change_username(new_username: str, email: str, callingUser: schemas.Internal
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden") 
     return crud.change_username(db, user, new_username)
 
-
 @app.get("/user/{username}", response_model=schemas.InternalUser, tags=["Users"])
 def get_user(username: str, user: schemas.InternalUser = Depends(get_current_user), db: Session = Depends(get_db)):
     """
@@ -324,8 +323,9 @@ async def create_upload_file(files: List[UploadFile], placeID: int, db: Session 
     path = Path(STATIC_FILES_DIRECTORY + str(placeID))
     
     if place.posterID == user.username or user.accessLevel == accessLevel.ADMIN:
-        return add_thumbnail_urls(db, await write_files(path, files, get_thumbnail_urls(db, placeID)), placeID, user)
-    raise HTTPException(status_code=status.HTTP_403_FORBIDDEN)
+        crud.add_thumbnail_urls(db, await write_files(path, files, get_thumbnail_urls(db, placeID)), placeID, user)
+    else:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN)
 
 @app.get("/thumbnails/{placeID}", response_model=List[schemas.Thumbnail], tags=["Thumbnails"], deprecated=True)
 def get_thumbnails_from_place(placeID: int, db: Session = Depends(get_db)):
@@ -439,7 +439,7 @@ def delete_rating(ratingID: int, user: InternalUser = Depends(get_current_user),
 
 
 @app.get("/places/verification", response_model=List[schemas.GetPlace], tags=["Moderation"])
-def list_places(skip: int = 0, limit: int = 100, user: schemas.InternalUser = Depends(get_current_user), db: Session = Depends(get_db)):
+def list_unverified_places(skip: int = 0, limit: int = 100, user: schemas.InternalUser = Depends(get_current_user), db: Session = Depends(get_db)):
     """
     Gets a list of unverified places and their information
 
@@ -452,7 +452,7 @@ def list_places(skip: int = 0, limit: int = 100, user: schemas.InternalUser = De
     return places
 
 @app.post("/places/setverification", status_code=status.HTTP_200_OK, tags=["Moderation"])
-def set_verified(isverified: bool, placeID: int, db: Session = Depends(get_db), user: schemas.InternalUser = Depends(get_current_user)):
+def set_place_verified(isverified: bool, placeID: int, db: Session = Depends(get_db), user: schemas.InternalUser = Depends(get_current_user)):
     """
     Sets the visibility of a place:
 
@@ -462,12 +462,42 @@ def set_verified(isverified: bool, placeID: int, db: Session = Depends(get_db), 
     Note: Only staff can use this command, otherwise it will respond with a 401. 
     """
     if user.accessLevel == accessLevel.USER:
-        raise HTTPException(status_code=401, detail="Forbidden")
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
     place = crud.get_place(db, placeID)
     if place is None:
-        raise HTTPException(status_code=404, detail="Place not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Place not found")
 
     set_place_visibility(db, placeID, isverified)
+
+@app.get("/images/verification", response_model=List[schemas.Thumbnail], tags=["Moderation"])
+def list_unverified_images(skip: int = 0, limit: int = 100, user: schemas.InternalUser = Depends(get_current_user), db: Session = Depends(get_db)):
+    """
+    Gets a list of unverified images and their information
+
+    - skip: will offset the images returned
+    - limit: will return either this amount of images or the number of images after the skip offset, whichever is smaller
+    """
+    if user.accessLevel == accessLevel.USER:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
+    return get_unverified_thumbnails(db, skip, limit)
+
+@app.post("/images/setverification", status_code=status.HTTP_200_OK, tags=["Moderation"])
+def set_image_verified(isverified: bool, imageID: int, db: Session = Depends(get_db), user: schemas.InternalUser = Depends(get_current_user)):
+    """
+    Sets the visibility of an image:
+
+    - isverified: boolean value of image visibility
+    - placeID: the id to fetch. Will always be an integer
+
+    Note: Only staff can use this command, otherwise it will respond with a 401. 
+    """
+    if user.accessLevel == accessLevel.USER:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Forbidden")
+    image = crud.get_thumbnail(db, imageID)
+    if image is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Place not found")
+
+    crud.set_thumbnail_visibility(db, imageID, isverified)
 
 
 # =============================================================================== SECURITY

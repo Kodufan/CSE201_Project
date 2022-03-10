@@ -128,7 +128,7 @@ def create_place(db: Session, place: schemas.SetPlace, user: schemas.InternalUse
 
     return db_place
 
-def get_place(db: Session, placeID: int):
+def get_place(db: Session, placeID: int, ):
     place = db.query(models.Place).filter(models.Place.placeID == placeID).first()
 
     if place is not None:
@@ -140,9 +140,9 @@ def get_place(db: Session, placeID: int):
                 country=place.country,
                 description=place.description,
                 rating=place.rating,
-                thumbnails=db.query(models.Thumbnail).filter(models.Thumbnail.placeID == placeID).all(),
+                thumbnails=get_thumbnails_from_place(db, placeID, False),
                 comments=db.query(models.Comment).filter(models.Comment.placeID == placeID).all(),
-                isvisible=place.isvisible
+                isvisible=place.verified
             )
         return returnPlace
 
@@ -152,7 +152,7 @@ def get_place_pointer(db: Session, placeID: int):
 def get_places_by_popularity(db: Session, skip: int = 0, limit: int = 100, visibility = visibility):
     query = db.query(models.Place).order_by(desc('rating'))
     if visibility != visibility.ALL:
-        query = query.filter(models.Place.isvisible == (True if visibility == 1 else False))
+        query = query.filter(models.Place.verified == (True if visibility == 1 else False))
     else: 
         query = query.order_by(desc('rating'))
     places = query.offset(skip).limit(limit).all()
@@ -166,7 +166,7 @@ def get_places_by_popularity(db: Session, skip: int = 0, limit: int = 100, visib
             country=i.country,
             description=i.description,
             rating=i.rating,
-            thumbnails=db.query(models.Thumbnail).filter(models.Thumbnail.placeID == i.placeID).all(),
+            thumbnails=get_thumbnails_from_place(db, i.placeID, False),
             comments=db.query(models.Comment).filter(models.Comment.placeID == i.placeID).all()
         ))
     return list_of_places
@@ -175,7 +175,7 @@ def get_places_by_distance(db: Session, latitude: int, longitude: int, skip: int
     query = db.query(models.Place)
 
     if visibility != visibility.ALL:
-        query = query.filter(models.Place.isvisible == (True if visibility == 1 else False))
+        query = query.filter(models.Place.verified == (True if visibility == 1 else False))
     else: 
         query = query.order_by(desc('rating'))
     places = query.offset(skip).limit(limit).all()
@@ -195,7 +195,7 @@ def get_places_by_distance(db: Session, latitude: int, longitude: int, skip: int
             country=i.country,
             description=i.description,
             rating=i.rating,
-            thumbnails=db.query(models.Thumbnail).filter(models.Thumbnail.placeID == i.placeID).all(),
+            thumbnails=get_thumbnails_from_place(db, i.placeID, False),
             comments=db.query(models.Comment).filter(models.Comment.placeID == i.placeID).all()
         )
         places_dict_unsorted[dist] = new_place
@@ -224,7 +224,7 @@ def update_place(db: Session, place: PatchPlace):
 
 def set_place_visibility(db: Session, placeID: int, visibility: bool):
     place = db.query(models.Place).filter(models.Place.placeID == placeID).first()
-    place.isvisible = visibility
+    place.verified = visibility
     db.commit()
 
 def delete_place(db: Session, placeID: int):
@@ -240,23 +240,22 @@ def delete_place(db: Session, placeID: int):
 def add_thumbnail_urls(db: Session, urls: List[str], placeID: int, uploader: schemas.InternalUser):
     place = db.query(models.Place).filter(models.Place.placeID == placeID).first()
 
+    isverified = uploader.accessLevel != accessLevel.USER
     if place is None:
         return
 
     for image in urls:
-    
         db_thumbnail = models.Thumbnail(
             uploader=uploader.username,
+            verified=isverified,
             placeID=placeID,
             internalURL=STATIC_FILES_DIRECTORY + str(placeID) + "/" + image,
             externalURL=SERVER_IP  + "usercontent/" + str(placeID) + "/" + image,
             uploadDate=datetime.now()
         )
-
         db.add(db_thumbnail)
     db.commit()
     db.refresh(place)
-
 
     return get_place(db, placeID)
 
@@ -268,11 +267,24 @@ def get_thumbnail_urls(db: Session, placeID: int):
         result.append(url.externalURL)
     return result
 
-def get_thumbnails_from_place(db: Session, placeID: int):
-    return db.query(models.Thumbnail).filter(models.Thumbnail.placeID == placeID).all()
+def get_thumbnails_from_place(db: Session, placeID: int, show_unverified: bool):
+    query = db.query(models.Thumbnail).filter(models.Thumbnail.placeID == placeID)
+    if not show_unverified:
+        query = query.filter(models.Thumbnail.verified == True)
+    return query.all()
 
 def get_thumbnail(db: Session, imageID: int):
     return db.query(models.Thumbnail).filter(models.Thumbnail.imageID == imageID).first()
+
+def set_thumbnail_visibility(db: Session, imageID: int, visibility: bool):
+    image = db.query(models.Thumbnail).filter(models.Thumbnail.imageID == imageID).first()
+    image.verified = visibility
+    db.commit()
+
+def get_unverified_thumbnails(db: Session, skip: int = 0, limit: int = 100):
+    query = db.query(models.Thumbnail)
+    images = query.filter(models.Thumbnail.verified == False).offset(skip).limit(limit).all()
+    return images
 
 def delete_thumbnail(db: Session, imageID: int):
     image = get_thumbnail(db, imageID)

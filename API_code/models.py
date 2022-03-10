@@ -26,7 +26,7 @@ class Place(Base):
     country = Column(String(6))
     description = Column(String(1000))
     rating = Column(Float)
-    isvisible = Column(Boolean, nullable=False)
+    verified = Column(Boolean, nullable=False)
 
 class Comment(Base):
     __tablename__ = "comments"

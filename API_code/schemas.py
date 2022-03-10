@@ -58,7 +58,7 @@ class Thumbnail(BaseModel):
 
 class InternalThumbnail(Thumbnail):
     internalURL: str
-    isverified: bool
+    verified: bool
 
 class SetPlace(BaseModel):
     plusCode: str
