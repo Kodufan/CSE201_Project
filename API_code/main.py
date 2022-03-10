@@ -92,7 +92,7 @@ def create_user(user: CreateUser, db: Session = Depends(get_db)):
     Note: Returns a 404 if either the username or emails are taken.
     """
     user = crud.create_user(db, user)
-    token = crud.create_token(db, user.username, tokenType.VERIFICATION)
+    token = crud.create_token(db, user.email, tokenType.VERIFICATION)
     send_verification_email(user, token)
     return user
 
@@ -115,6 +115,31 @@ def set_perms(username: str, accessLevel: accessLevel, callingUser: schemas.Inte
         set_user_perms(db, username, accessLevel)
     else:
         raise HTTPException(status_code=401, detail="Forbidden") 
+
+@app.post("/changeUsername", response_model=schemas.UserInfo, status_code=status.HTTP_200_OK, tags=["Users"])
+def change_username(new_username: str, email: str, callingUser: schemas.InternalUser = Depends(get_current_user), db: Session = Depends(get_db)):
+    """
+    Changes a user's username:
+
+    - email: the user whos name will be changed
+    - new_username: the new username it will be set to
+
+    Note: All users can change their own usernames. Staff can change the usernames of USER users.
+    """
+    user = crud.get_user(db, email)
+    if user is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    if user.username == new_username:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Enter a new username") 
+    if crud.get_user_from_username(db, new_username) is not None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Username already taken") 
+    
+
+    # Only sets perms if the logged in user is admin. Doesn't allow setting other users to admin. Doesn't allow demoting other admins including self
+    if (callingUser.email != user.email and callingUser.accessLevel == accessLevel.USER):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden") 
+    return crud.change_username(db, user, new_username)
+
 
 @app.get("/user/{username}", response_model=schemas.InternalUser, tags=["Users"])
 def get_user(username: str, user: schemas.InternalUser = Depends(get_current_user), db: Session = Depends(get_db)):
@@ -465,7 +490,7 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = 
     if not hashed_password == user.hashed_password:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Incorrect username or password")
 
-    access_token = create_token(db, username=form_data.username, type=tokenType.ACCOUNT)
+    access_token = create_token(db, email=form_data.username, type=tokenType.ACCOUNT)
 
     return {"access_token": access_token, "token_type": "bearer"}
 
@@ -504,7 +529,7 @@ async def verify_email(email: str, db: Session = Depends(get_db)):
 
     Note: Returns a 404 if the email has no associated token.
     """
-    user = crud.get_email(db, email)
+    user = crud.get_user_from_username(db, email)
     
     if user is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User with that email does not exist")
@@ -525,7 +550,7 @@ async def forgot_password(email: str, request: Request, db: Session = Depends(ge
 
     Note: Returns a 404 if the email has no associated token.
     """
-    user = crud.get_email(db, email)
+    user = crud.get_user_from_username(db, email)
     
     if user is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User with that email does not exist")
@@ -554,6 +579,7 @@ async def verify_token(token: str, new_password: str, db: Session = Depends(get_
     elif token_obj.expires < datetime.now() or not token_obj.type == tokenType.PASSRESET:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Bad token")
     reset_password(db, new_password, token)
+    db.delete(get_token_by_user(db, token_obj.username, tokenType.ACCOUNT))
     db.delete(token_obj)
     db.commit
 # =============================================================================== DEBUG

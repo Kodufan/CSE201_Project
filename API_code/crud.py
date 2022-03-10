@@ -19,11 +19,11 @@ from schemas import PatchPlace, accessLevel, tokenType, visibility
 
 # =============================================================================== USERS
 
-def get_user(db: Session, username: str):
-    return db.query(models.User).filter(models.User.username == username).first()
-
-def get_email(db: Session, email: str):
+def get_user(db: Session, email: str):
     return db.query(models.User).filter(models.User.email == email).first()
+
+def get_user_from_username(db: Session, username: str):
+    return db.query(models.User).filter(models.User.username == username).first()
 
 def get_user_info(db: Session, username: str):
     db_user = get_user(db, username)
@@ -44,27 +44,27 @@ def get_user_from_token(db: Session, token: str):
     if get_token is None:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Bad token")
     if get_token.type == tokenType.VERIFICATION:
-        return get_user(db, get_token.username)
+        return get_user(db, get_token.email)
     if not get_token.expires < datetime.now():
-        return get_user(db, refresh_token_by_token(db, token, tokenType.ACCOUNT).username)
+        return get_user(db, refresh_token_by_token(db, token, tokenType.ACCOUNT).email)
     raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Expired token")
 
 def get_users(db: Session, skip: int = 0, limit: int = 100):
-    usernames = db.query(models.User).offset(skip).limit(limit).all()
+    users = db.query(models.User).offset(skip).limit(limit).all()
     output = list()
-    for user in usernames:
-        output.append(get_user_info(db, user.username))
+    for user in users:
+        output.append(get_user_info(db, user.email))
     return output
 
 def create_user(db: Session, user: schemas.CreateUser):
     hashed_password = hash_password(user.rawPassword)
     
 
-    if get_user(db, user.username) is not None:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Username is taken")
-    
-    if get_email(db, user.email) is not None:
+    if get_user(db, user.email) is not None:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email is taken")
+    
+    if get_user_from_username(db, user.username) is not None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Username is taken")
 
     db_user = models.User(
         username=user.username, 
@@ -77,16 +77,15 @@ def create_user(db: Session, user: schemas.CreateUser):
 
     db.add(db_user)
     db.commit()
-        
     db.refresh(db_user)
     return db_user
 
-def delete_user(db: Session, username: str):
-    db.delete(get_user(db, username=username))
+def delete_user(db: Session, email: str):
+    db.delete(get_user(db, email=email))
     db.commit()
 
-def set_user_perms(db: Session, username: str, accessLevel: accessLevel):
-    db_user = get_user(db, username=username)
+def set_user_perms(db: Session, email: str, accessLevel: accessLevel):
+    db_user = get_user(db, email=email)
 
     if db_user is None:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="User not found")
@@ -96,6 +95,13 @@ def set_user_perms(db: Session, username: str, accessLevel: accessLevel):
     db.refresh(db_user)
     return db_user
 
+def change_username(db: Session, user: schemas.InternalUser, username: str):
+    db_user = get_user(db, user.email)
+    db_user.username = username
+    db.commit()
+    db.refresh(db_user)
+    print(type(db_user))
+    return db_user
 
 # =============================================================================== PLACES
 
@@ -360,32 +366,32 @@ def update_score(db: Session, placeID: int):
 def hash_password(password: str):
     return hashlib.sha256(password.encode('utf-8')).hexdigest()
 
-def get_token_by_user(db: Session, username: str, type: models.tokenType):
-    return db.query(models.Token).filter(models.Token.username == username).filter(models.Token.type == type).first()
+def get_token_by_user(db: Session, email: str, type: models.tokenType):
+    return db.query(models.Token).filter(models.Token.email == email).filter(models.Token.type == type).first()
 
 def get_token_by_token(db: Session, token: str):
     return db.query(models.Token).filter(models.Token.token == token).first()
 
-def delete_token(db: Session, username: str, type:models.tokenType):
-    db.delete(get_token_by_user(db, username, type))
+def delete_token(db: Session, email: str, type:models.tokenType):
+    db.delete(get_token_by_user(db, email, type))
     db.commit()
 
 def make_random_string(length: int):
     return ''.join(random.choice(string.ascii_letters + string.digits) for x in range(length))
 
-def create_token(db: Session, username: str, type: models.tokenType):
+def create_token(db: Session, email: str, type: models.tokenType):
     token = ''
 
     # If user token already exists, delete and continue
-    if get_token_by_user(db, username, type) is not None:
-        delete_token(db, username, type)
+    if get_token_by_user(db, email, type) is not None:
+        delete_token(db, email, type)
 
     # If user does not exist, throw error
-    if get_user(db, username) is None:
+    if get_user(db, email) is None:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="User not found")
 
     db_token = models.Token(
-        username=username,
+        email=email,
         type=type,
         token=token
     )
