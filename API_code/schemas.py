@@ -96,8 +96,9 @@ class User(BaseModel):
         orm_mode=True
 
 class UserInfo(User):
-    ratings: Optional[List[GetRating]]
     places: Optional[List[GetPlace]]
+    ratings: Optional[List[GetRating]]
+    images: Optional[List[Thumbnail]]
     accountCreated: datetime
 
 class InternalUser(UserInfo):

@@ -32,6 +32,7 @@ def get_user_info(db: Session, username: str):
                 username=db_user.username,
                 email=db_user.email,
                 verified=db_user.verified,
+                images=get_thumbnails_from_user(db, db_user),
                 ratings=get_user_ratings(db, db_user),
                 places=get_places_from_user(db, db_user),
                 accessLevel=db_user.accessLevel,
@@ -272,6 +273,9 @@ def get_thumbnails_from_place(db: Session, placeID: int, show_unverified: bool):
     if not show_unverified:
         query = query.filter(models.Thumbnail.verified == True)
     return query.all()
+
+def get_thumbnails_from_user(db: Session, user: schemas.InternalUser):
+    return db.query(models.Thumbnail).filter(models.Thumbnail.uploader == user.username).filter(models.Thumbnail.verified == True).all()
 
 def get_thumbnail(db: Session, imageID: int):
     return db.query(models.Thumbnail).filter(models.Thumbnail.imageID == imageID).first()

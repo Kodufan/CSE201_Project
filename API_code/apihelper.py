@@ -10,7 +10,7 @@ from fastapi import Depends, HTTPException, UploadFile, status
 from pathlib2 import PurePosixPath
 
 import crud
-from config import ACCEPTABLE_FILE_EXTENSIONS, SERVER_IP
+from config import ACCEPTABLE_FILE_EXTENSIONS
 from database import SessionLocal
 from schemas import InternalUser
 from secret_config import *
