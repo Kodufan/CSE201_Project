@@ -19,11 +19,11 @@ from schemas import PatchPlace, accessLevel, tokenType, visibility
 
 # =============================================================================== USERS
 
-def get_user(db: Session, username: str):
-    return db.query(models.User).filter(models.User.username == username).first()
-
-def get_email(db: Session, email: str):
+def get_user(db: Session, email: str):
     return db.query(models.User).filter(models.User.email == email).first()
+
+def get_user_from_username(db: Session, username: str):
+    return db.query(models.User).filter(models.User.username == username).first()
 
 def get_user_info(db: Session, username: str):
     db_user = get_user(db, username)
@@ -32,6 +32,7 @@ def get_user_info(db: Session, username: str):
                 username=db_user.username,
                 email=db_user.email,
                 verified=db_user.verified,
+                images=get_thumbnails_from_user(db, db_user),
                 ratings=get_user_ratings(db, db_user),
                 places=get_places_from_user(db, db_user),
                 accessLevel=db_user.accessLevel,
@@ -44,23 +45,27 @@ def get_user_from_token(db: Session, token: str):
     if get_token is None:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Bad token")
     if get_token.type == tokenType.VERIFICATION:
-        return get_user(db, get_token.username)
+        return get_user(db, get_token.email)
     if not get_token.expires < datetime.now():
-        return get_user(db, refresh_token_by_token(db, token, tokenType.ACCOUNT).username)
+        return get_user(db, refresh_token_by_token(db, token, tokenType.ACCOUNT).email)
     raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Expired token")
 
 def get_users(db: Session, skip: int = 0, limit: int = 100):
-    return db.query(models.User).offset(skip).limit(limit).all()
+    users = db.query(models.User).offset(skip).limit(limit).all()
+    output = list()
+    for user in users:
+        output.append(get_user_info(db, user.email))
+    return output
 
 def create_user(db: Session, user: schemas.CreateUser):
     hashed_password = hash_password(user.rawPassword)
     
 
-    if get_user(db, user.username) is not None:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Username is taken")
-    
-    if get_email(db, user.email) is not None:
+    if get_user(db, user.email) is not None:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email is taken")
+    
+    if get_user_from_username(db, user.username) is not None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Username is taken")
 
     db_user = models.User(
         username=user.username, 
@@ -73,16 +78,15 @@ def create_user(db: Session, user: schemas.CreateUser):
 
     db.add(db_user)
     db.commit()
-        
     db.refresh(db_user)
     return db_user
 
-def delete_user(db: Session, username: str):
-    db.delete(get_user(db, username=username))
+def delete_user(db: Session, email: str):
+    db.delete(get_user(db, email=email))
     db.commit()
 
-def set_user_perms(db: Session, username: str, accessLevel: accessLevel):
-    db_user = get_user(db, username=username)
+def set_user_perms(db: Session, email: str, accessLevel: accessLevel):
+    db_user = get_user(db, email=email)
 
     if db_user is None:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="User not found")
@@ -92,6 +96,13 @@ def set_user_perms(db: Session, username: str, accessLevel: accessLevel):
     db.refresh(db_user)
     return db_user
 
+def change_username(db: Session, user: schemas.InternalUser, username: str):
+    db_user = get_user(db, user.email)
+    db_user.username = username
+    db.commit()
+    db.refresh(db_user)
+    print(type(db_user))
+    return db_user
 
 # =============================================================================== PLACES
 
@@ -118,7 +129,7 @@ def create_place(db: Session, place: schemas.SetPlace, user: schemas.InternalUse
 
     return db_place
 
-def get_place(db: Session, placeID: int):
+def get_place(db: Session, placeID: int, ):
     place = db.query(models.Place).filter(models.Place.placeID == placeID).first()
 
     if place is not None:
@@ -130,9 +141,9 @@ def get_place(db: Session, placeID: int):
                 country=place.country,
                 description=place.description,
                 rating=place.rating,
-                thumbnails=db.query(models.Thumbnail).filter(models.Thumbnail.placeID == placeID).all(),
+                thumbnails=get_thumbnails_from_place(db, placeID, False),
                 comments=db.query(models.Comment).filter(models.Comment.placeID == placeID).all(),
-                isvisible=place.isvisible
+                isvisible=place.verified
             )
         return returnPlace
 
@@ -142,7 +153,7 @@ def get_place_pointer(db: Session, placeID: int):
 def get_places_by_popularity(db: Session, skip: int = 0, limit: int = 100, visibility = visibility):
     query = db.query(models.Place).order_by(desc('rating'))
     if visibility != visibility.ALL:
-        query = query.filter(models.Place.isvisible == (True if visibility == 1 else False))
+        query = query.filter(models.Place.verified == (True if visibility == 1 else False))
     else: 
         query = query.order_by(desc('rating'))
     places = query.offset(skip).limit(limit).all()
@@ -156,7 +167,7 @@ def get_places_by_popularity(db: Session, skip: int = 0, limit: int = 100, visib
             country=i.country,
             description=i.description,
             rating=i.rating,
-            thumbnails=db.query(models.Thumbnail).filter(models.Thumbnail.placeID == i.placeID).all(),
+            thumbnails=get_thumbnails_from_place(db, i.placeID, False),
             comments=db.query(models.Comment).filter(models.Comment.placeID == i.placeID).all()
         ))
     return list_of_places
@@ -165,7 +176,7 @@ def get_places_by_distance(db: Session, latitude: int, longitude: int, skip: int
     query = db.query(models.Place)
 
     if visibility != visibility.ALL:
-        query = query.filter(models.Place.isvisible == (True if visibility == 1 else False))
+        query = query.filter(models.Place.verified == (True if visibility == 1 else False))
     else: 
         query = query.order_by(desc('rating'))
     places = query.offset(skip).limit(limit).all()
@@ -185,11 +196,10 @@ def get_places_by_distance(db: Session, latitude: int, longitude: int, skip: int
             country=i.country,
             description=i.description,
             rating=i.rating,
-            thumbnails=db.query(models.Thumbnail).filter(models.Thumbnail.placeID == i.placeID).all(),
+            thumbnails=get_thumbnails_from_place(db, i.placeID, False),
             comments=db.query(models.Comment).filter(models.Comment.placeID == i.placeID).all()
         )
         places_dict_unsorted[dist] = new_place
-        print(dist)
     for i in sorted(places_dict_unsorted):
         places_dict_sorted[i] = places_dict_unsorted[i]
     return_list = list(places_dict_sorted.values())
@@ -204,7 +214,6 @@ def get_places_from_user(db: Session, user: schemas.InternalUser):
     return return_places
 
 def update_place(db: Session, place: PatchPlace):
-    print(type(place))
     db_place = db.query(models.Place).filter(models.Place.placeID == place.placeID).first()
     db_place.plusCode = place.plusCode
     db_place.friendlyName = place.friendlyName
@@ -216,7 +225,7 @@ def update_place(db: Session, place: PatchPlace):
 
 def set_place_visibility(db: Session, placeID: int, visibility: bool):
     place = db.query(models.Place).filter(models.Place.placeID == placeID).first()
-    place.isvisible = visibility
+    place.verified = visibility
     db.commit()
 
 def delete_place(db: Session, placeID: int):
@@ -232,23 +241,22 @@ def delete_place(db: Session, placeID: int):
 def add_thumbnail_urls(db: Session, urls: List[str], placeID: int, uploader: schemas.InternalUser):
     place = db.query(models.Place).filter(models.Place.placeID == placeID).first()
 
+    isverified = uploader.accessLevel != accessLevel.USER
     if place is None:
         return
 
     for image in urls:
-    
         db_thumbnail = models.Thumbnail(
             uploader=uploader.username,
+            verified=isverified,
             placeID=placeID,
             internalURL=STATIC_FILES_DIRECTORY + str(placeID) + "/" + image,
             externalURL=SERVER_IP  + "usercontent/" + str(placeID) + "/" + image,
             uploadDate=datetime.now()
         )
-
         db.add(db_thumbnail)
     db.commit()
     db.refresh(place)
-
 
     return get_place(db, placeID)
 
@@ -260,11 +268,27 @@ def get_thumbnail_urls(db: Session, placeID: int):
         result.append(url.externalURL)
     return result
 
-def get_thumbnails_from_place(db: Session, placeID: int):
-    return db.query(models.Thumbnail).filter(models.Thumbnail.placeID == placeID).all()
+def get_thumbnails_from_place(db: Session, placeID: int, show_unverified: bool):
+    query = db.query(models.Thumbnail).filter(models.Thumbnail.placeID == placeID)
+    if not show_unverified:
+        query = query.filter(models.Thumbnail.verified == True)
+    return query.all()
+
+def get_thumbnails_from_user(db: Session, user: schemas.InternalUser):
+    return db.query(models.Thumbnail).filter(models.Thumbnail.uploader == user.username).filter(models.Thumbnail.verified == True).all()
 
 def get_thumbnail(db: Session, imageID: int):
     return db.query(models.Thumbnail).filter(models.Thumbnail.imageID == imageID).first()
+
+def set_thumbnail_visibility(db: Session, imageID: int, visibility: bool):
+    image = db.query(models.Thumbnail).filter(models.Thumbnail.imageID == imageID).first()
+    image.verified = visibility
+    db.commit()
+
+def get_unverified_thumbnails(db: Session, skip: int = 0, limit: int = 100):
+    query = db.query(models.Thumbnail)
+    images = query.filter(models.Thumbnail.verified == False).offset(skip).limit(limit).all()
+    return images
 
 def delete_thumbnail(db: Session, imageID: int):
     image = get_thumbnail(db, imageID)
@@ -348,7 +372,6 @@ def update_score(db: Session, placeID: int):
     if len(ratingValues) == 0:
         place.rating = -1
     else:
-        print("SUM: " + str(sum) + "\nLENGTH: " + str(len(ratings)))
         place.rating = round((sum / (len(ratingValues))), 1)
     db.commit()
 
@@ -359,32 +382,32 @@ def update_score(db: Session, placeID: int):
 def hash_password(password: str):
     return hashlib.sha256(password.encode('utf-8')).hexdigest()
 
-def get_token_by_user(db: Session, username: str, type: models.tokenType):
-    return db.query(models.Token).filter(models.Token.username == username).filter(models.Token.type == type).first()
+def get_token_by_user(db: Session, email: str, type: models.tokenType):
+    return db.query(models.Token).filter(models.Token.email == email).filter(models.Token.type == type).first()
 
 def get_token_by_token(db: Session, token: str):
     return db.query(models.Token).filter(models.Token.token == token).first()
 
-def delete_token(db: Session, username: str, type:models.tokenType):
-    db.delete(get_token_by_user(db, username, type))
+def delete_token(db: Session, email: str, type:models.tokenType):
+    db.delete(get_token_by_user(db, email, type))
     db.commit()
 
 def make_random_string(length: int):
     return ''.join(random.choice(string.ascii_letters + string.digits) for x in range(length))
 
-def create_token(db: Session, username: str, type: models.tokenType):
+def create_token(db: Session, email: str, type: models.tokenType):
     token = ''
 
     # If user token already exists, delete and continue
-    if get_token_by_user(db, username, type) is not None:
-        delete_token(db, username, type)
+    if get_token_by_user(db, email, type) is not None:
+        delete_token(db, email, type)
 
     # If user does not exist, throw error
-    if get_user(db, username) is None:
+    if get_user(db, email) is None:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="User not found")
 
     db_token = models.Token(
-        username=username,
+        email=email,
         type=type,
         token=token
     )

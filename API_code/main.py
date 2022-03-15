@@ -92,7 +92,7 @@ def create_user(user: CreateUser, db: Session = Depends(get_db)):
     Note: Returns a 404 if either the username or emails are taken.
     """
     user = crud.create_user(db, user)
-    token = crud.create_token(db, user.username, tokenType.VERIFICATION)
+    token = crud.create_token(db, user.email, tokenType.VERIFICATION)
     send_verification_email(user, token)
     return user
 
@@ -115,6 +115,30 @@ def set_perms(username: str, accessLevel: accessLevel, callingUser: schemas.Inte
         set_user_perms(db, username, accessLevel)
     else:
         raise HTTPException(status_code=401, detail="Forbidden") 
+
+@app.post("/changeUsername", response_model=schemas.UserInfo, status_code=status.HTTP_200_OK, tags=["Users"])
+def change_username(new_username: str, email: str, callingUser: schemas.InternalUser = Depends(get_current_user), db: Session = Depends(get_db)):
+    """
+    Changes a user's username:
+
+    - email: the user whos name will be changed
+    - new_username: the new username it will be set to
+
+    Note: All users can change their own usernames. Staff can change the usernames of USER users.
+    """
+    user = crud.get_user(db, email)
+    if user is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    if user.username == new_username:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Enter a new username") 
+    if crud.get_user_from_username(db, new_username) is not None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Username already taken") 
+    
+
+    # Only sets perms if the logged in user is admin. Doesn't allow setting other users to admin. Doesn't allow demoting other admins including self
+    if (callingUser.email != user.email and callingUser.accessLevel == accessLevel.USER):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden") 
+    return crud.change_username(db, user, new_username)
 
 @app.get("/user/{username}", response_model=schemas.InternalUser, tags=["Users"])
 def get_user(username: str, user: schemas.InternalUser = Depends(get_current_user), db: Session = Depends(get_db)):
@@ -148,7 +172,7 @@ def list_users(skip: int = 0, limit: int = 100, user: schemas.InternalUser = Dep
     return users
 
 @app.delete("/user/", status_code=200, tags=["Users"])
-def delete_user(user: schemas.InternalUser = Depends(get_current_user), db: Session = Depends(get_db)):
+def delete_user(username: str, user: schemas.InternalUser = Depends(get_current_user), db: Session = Depends(get_db)):
     """
     Deletes a user
 
@@ -156,15 +180,15 @@ def delete_user(user: schemas.InternalUser = Depends(get_current_user), db: Sess
 
     Note: Returns a 404 if the user doesn't exist. Returns a 403 if the user is trying to delete someone else and is not an admin. Admins can delete any user that isn't an admin, but can delete themselves.
     """
-    db_user = crud.get_user(db, username=user.username)
+    db_user = crud.get_user(db, username)
     if db_user is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
-
     if db_user == user:
         crud.delete_user(db, username=user.username)
     elif user.accessLevel == accessLevel.ADMIN and db_user.accessLevel != accessLevel.ADMIN:
         crud.delete_user(db, username=user.username)
-    raise HTTPException(status_code=status.HTTP_403_FORBIDDEN)
+    else:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN)
 
 
 # =============================================================================== PLACES
@@ -299,17 +323,18 @@ async def create_upload_file(files: List[UploadFile], placeID: int, db: Session 
     path = Path(STATIC_FILES_DIRECTORY + str(placeID))
     
     if place.posterID == user.username or user.accessLevel == accessLevel.ADMIN:
-        return add_thumbnail_urls(db, await write_files(path, files, get_thumbnail_urls(db, placeID)), placeID, user)
-    raise HTTPException(status_code=status.HTTP_403_FORBIDDEN)
+        crud.add_thumbnail_urls(db, await write_files(path, files, get_thumbnail_urls(db, placeID)), placeID, user)
+    else:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN)
 
-@app.get("/thumbnails/{placeID}", response_model=List[schemas.Thumbnail], tags=["Thumbnails"])
+@app.get("/thumbnails/{placeID}", response_model=List[schemas.Thumbnail], tags=["Thumbnails"], deprecated=True)
 def get_thumbnails_from_place(placeID: int, db: Session = Depends(get_db)):
     """
     Gets the information of a thumbnail
 
     - imageID: ID of the image to retrieve. Will always be an integer
 
-    Note: Returns a 404 if the image doesn't exist
+    Note: Returns a 404 if the image doesn't exist. Marked deprecated as getting a place also returns a list of thumbnails
     """
     return crud.get_thumbnails_from_place(db, placeID=placeID)
     
@@ -414,7 +439,7 @@ def delete_rating(ratingID: int, user: InternalUser = Depends(get_current_user),
 
 
 @app.get("/places/verification", response_model=List[schemas.GetPlace], tags=["Moderation"])
-def list_places(skip: int = 0, limit: int = 100, user: schemas.InternalUser = Depends(get_current_user), db: Session = Depends(get_db)):
+def list_unverified_places(skip: int = 0, limit: int = 100, user: schemas.InternalUser = Depends(get_current_user), db: Session = Depends(get_db)):
     """
     Gets a list of unverified places and their information
 
@@ -427,7 +452,7 @@ def list_places(skip: int = 0, limit: int = 100, user: schemas.InternalUser = De
     return places
 
 @app.post("/places/setverification", status_code=status.HTTP_200_OK, tags=["Moderation"])
-def set_verified(isverified: bool, placeID: int, db: Session = Depends(get_db), user: schemas.InternalUser = Depends(get_current_user)):
+def set_place_verified(isverified: bool, placeID: int, db: Session = Depends(get_db), user: schemas.InternalUser = Depends(get_current_user)):
     """
     Sets the visibility of a place:
 
@@ -437,12 +462,42 @@ def set_verified(isverified: bool, placeID: int, db: Session = Depends(get_db), 
     Note: Only staff can use this command, otherwise it will respond with a 401. 
     """
     if user.accessLevel == accessLevel.USER:
-        raise HTTPException(status_code=401, detail="Forbidden")
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
     place = crud.get_place(db, placeID)
     if place is None:
-        raise HTTPException(status_code=404, detail="Place not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Place not found")
 
     set_place_visibility(db, placeID, isverified)
+
+@app.get("/images/verification", response_model=List[schemas.Thumbnail], tags=["Moderation"])
+def list_unverified_images(skip: int = 0, limit: int = 100, user: schemas.InternalUser = Depends(get_current_user), db: Session = Depends(get_db)):
+    """
+    Gets a list of unverified images and their information
+
+    - skip: will offset the images returned
+    - limit: will return either this amount of images or the number of images after the skip offset, whichever is smaller
+    """
+    if user.accessLevel == accessLevel.USER:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
+    return get_unverified_thumbnails(db, skip, limit)
+
+@app.post("/images/setverification", status_code=status.HTTP_200_OK, tags=["Moderation"])
+def set_image_verified(isverified: bool, imageID: int, db: Session = Depends(get_db), user: schemas.InternalUser = Depends(get_current_user)):
+    """
+    Sets the visibility of an image:
+
+    - isverified: boolean value of image visibility
+    - placeID: the id to fetch. Will always be an integer
+
+    Note: Only staff can use this command, otherwise it will respond with a 401. 
+    """
+    if user.accessLevel == accessLevel.USER:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Forbidden")
+    image = crud.get_thumbnail(db, imageID)
+    if image is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Place not found")
+
+    crud.set_thumbnail_visibility(db, imageID, isverified)
 
 
 # =============================================================================== SECURITY
@@ -457,15 +512,15 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = 
     Note: Returns a 400 if either the username or password are incorrect.
     """
     user = crud.get_user(db, form_data.username)
-    if user.verified == False:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Account has not been verified")
     if not user:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Incorrect username or password")
+    if user.verified == False:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Account has not been verified")
     hashed_password = crud.hash_password(form_data.password)
     if not hashed_password == user.hashed_password:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Incorrect username or password")
 
-    access_token = create_token(db, username=form_data.username, type=tokenType.ACCOUNT)
+    access_token = create_token(db, email=form_data.username, type=tokenType.ACCOUNT)
 
     return {"access_token": access_token, "token_type": "bearer"}
 
@@ -504,7 +559,7 @@ async def verify_email(email: str, db: Session = Depends(get_db)):
 
     Note: Returns a 404 if the email has no associated token.
     """
-    user = crud.get_email(db, email)
+    user = crud.get_user_from_username(db, email)
     
     if user is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User with that email does not exist")
@@ -525,7 +580,7 @@ async def forgot_password(email: str, request: Request, db: Session = Depends(ge
 
     Note: Returns a 404 if the email has no associated token.
     """
-    user = crud.get_email(db, email)
+    user = crud.get_user_from_username(db, email)
     
     if user is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User with that email does not exist")
@@ -554,6 +609,7 @@ async def verify_token(token: str, new_password: str, db: Session = Depends(get_
     elif token_obj.expires < datetime.now() or not token_obj.type == tokenType.PASSRESET:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Bad token")
     reset_password(db, new_password, token)
+    db.delete(get_token_by_user(db, token_obj.username, tokenType.ACCOUNT))
     db.delete(token_obj)
     db.commit
 # =============================================================================== DEBUG
