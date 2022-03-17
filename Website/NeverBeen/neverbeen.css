@@ -145,6 +145,7 @@ header nav li{
     z-index: -1;
     background-color: white;
 }
+
 .hero h1 {
     font: bold 60px "Open Sans", sans-serif;
     margin-bottom: 15px;
@@ -154,7 +155,6 @@ header nav li{
     font: bold 28px "Open Sans", sans-serif;
     margin-bottom: 40px;
     color: LightBlue;
-
 }
 h3{
   color: White;
