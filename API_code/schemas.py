@@ -58,6 +58,7 @@ class Thumbnail(BaseModel):
 
 class InternalThumbnail(Thumbnail):
     internalURL: str
+    verified: bool
 
 class SetPlace(BaseModel):
     plusCode: str
@@ -95,14 +96,15 @@ class User(BaseModel):
         orm_mode=True
 
 class UserInfo(User):
-    ratings: Optional[List[GetRating]]
     places: Optional[List[GetPlace]]
+    ratings: Optional[List[GetRating]]
+    images: Optional[List[Thumbnail]]
+    accountCreated: datetime
 
 class InternalUser(UserInfo):
     email: str
     verified: bool
     accessLevel: accessLevel
-    accountCreated: datetime
 
 class CreateUser(User):
     email: str
