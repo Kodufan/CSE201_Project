@@ -1,3 +1,4 @@
 usercontent/
 *.pyc
 API_code/secret_config.py
+.DS_Store
