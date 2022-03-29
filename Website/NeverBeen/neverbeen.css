@@ -128,7 +128,7 @@ header nav li{
 /*Hero Styles*/
 
 .hero {
-    position: relative;
+    position: static; /* Changing this from relative to static fixed the navbar issue */
     justify-content: center;
     text-align: center;
     min-height: 100vh;
