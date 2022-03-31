@@ -13,6 +13,10 @@ import crud
 from config import ACCEPTABLE_FILE_EXTENSIONS
 from database import SessionLocal
 from schemas import InternalUser
+
+# This is not present in the repo. It contains variables
+# EMAIL: The email the API will attempt to send from
+# PASSWORD: The password of EMAIL
 from secret_config import *
 
 
