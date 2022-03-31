@@ -16,6 +16,9 @@ from schemas import InternalUser
 from secret_config import *
 
 
+DOMAIN = "smtp.gmail.com"
+PORT = 465
+
 # Gets database instance
 def get_db():
     db = SessionLocal()
@@ -53,6 +56,7 @@ def decode_token(db, token: str):
     return crud.get_user_from_token(db, token)
 
 def send_verification_email(user: InternalUser, token: str):
+    
     ssl_context = ssl.create_default_context()
     service = smtplib.SMTP_SSL(DOMAIN, PORT, context=ssl_context)
     service.login(EMAIL, PASSWORD)
