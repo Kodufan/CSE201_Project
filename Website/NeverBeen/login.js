@@ -1,4 +1,5 @@
 
+// Function used in tab switching
 function tabSelect(event, tabName){
     // Declare all variables
     var i, tabcontent, tablinks;
@@ -20,7 +21,8 @@ function tabSelect(event, tabName){
     event.currentTarget.className += " active";
 }
 
-var NeverBeenAPI = "http://134.53.116.212:8000"
+// API call when user fills out the sign up form
+const NeverBeenAPI = "http://134.53.116.212:8000";
 window.addEventListener( "load", function () {
     function sendData() {
         const XHR = new XMLHttpRequest();
@@ -62,3 +64,48 @@ function buildJsonFormData(form) {
     }
     return jsonFormData;
 }
+
+// // API call when user submits login form
+// var jwt = localStorage.getItem("jwt");
+// console.log(jwt);
+// if (jwt != null) {
+//   window.location.href = './index.html'
+// }
+
+// function login() {
+//   const username = document.getElementById("email").value;
+//   const password = document.getElementById("rawPassword").value;
+
+//   const xhttp = new XMLHttpRequest();
+//   xhttp.open("POST", NeverBeenAPI+"/login");
+// //   xhttp.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
+//   xhttp.send(JSON.stringify({
+//     "username": username,
+//     "password": password
+//   }));
+// //   xhttp.onreadystatechange = function () {
+// //     if (this.readyState == 4) {
+// //       const objects = JSON.parse(this.responseText);
+// //       console.log(objects);
+// //       if (objects['access_token'] != null) {
+// //         localStorage.setItem("jwt", objects['access_token']);
+// //         Swal.fire({
+// //           text: "You have been successfully signed in!",
+// //           icon: 'success',
+// //           confirmButtonText: 'OK'
+// //         }).then((result) => {
+// //           if (result.isConfirmed) {
+// //             window.location.href = './index.html';
+// //           }
+// //         });
+// //       } else {
+// //         Swal.fire({
+// //           text: "error",
+// //           icon: 'error',
+// //           confirmButtonText: 'OK'
+// //         });
+// //       }
+// //     }
+// //   };
+//   return false;
+// }
