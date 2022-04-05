@@ -58,12 +58,7 @@ models.Base.metadata.create_all(bind=engine)
 app = FastAPI(openapi_tags=tags_metadata)
 
 # Accepted cors origins
-origins = [
-    "http://localhost:80",
-    "http://localhost",
-    "http://134.53.116.212:8000",
-    "http://134.53.116.212"
-]
+origins = ["*"]
 
 # Adds cors to the application
 app.add_middleware(
