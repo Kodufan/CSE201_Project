@@ -190,21 +190,21 @@ def list_users(skip: int = 0, limit: int = 100, user: schemas.InternalUser = Dep
     return users
 
 @app.delete("/user/", status_code=200, tags=["Users"])
-def delete_user(username: str, user: schemas.InternalUser = Depends(get_current_user), db: Session = Depends(get_db)):
+def delete_user(email: str, user: schemas.InternalUser = Depends(get_current_user), db: Session = Depends(get_db)):
     """
     Deletes a user
 
-    - username: the username to fetch
+    - email: the email of the account to fetch
 
     Note: Returns a 404 if the user doesn't exist. Returns a 403 if the user is trying to delete someone else and is not an admin. Admins can delete any user that isn't an admin, but can delete themselves.
     """
-    db_user = crud.get_user(db, username)
+    db_user = crud.get_user(db, email)
     if db_user is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
     if db_user == user:
-        crud.delete_user(db, username=user.username)
+        crud.delete_user(db, email=user.email)
     elif user.accessLevel == accessLevel.ADMIN and db_user.accessLevel != accessLevel.ADMIN:
-        crud.delete_user(db, username=user.username)
+        crud.delete_user(db, email=user.email)
     else:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN)
 
