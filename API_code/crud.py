@@ -101,7 +101,6 @@ def change_username(db: Session, user: schemas.InternalUser, username: str):
     db_user.username = username
     db.commit()
     db.refresh(db_user)
-    print(type(db_user))
     return db_user
 
 # =============================================================================== PLACES

@@ -17,7 +17,7 @@ from database import engine
 from models import *
 from openlocationcode import isFull
 from schemas import *
-from schemas import accessLevel, placeOrder, tokenType, visibility
+from schemas import accessLevel, placeOrder, tokenType, visibility, Token
 
 # Dict of tags and their descriptions to break the OpenAPI docs into sections
 tags_metadata = [
@@ -106,7 +106,12 @@ def create_user(user: CreateUser, db: Session = Depends(get_db)):
     """
     user = crud.create_user(db, user)
     token = crud.create_token(db, user.email, tokenType.VERIFICATION)
-    send_verification_email(user, token)
+    try:
+        send_verification_email(user, token)
+        pass
+    except:
+        crud.delete_user(db, user.email)
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Email could not be sent")
     return user
 
 @app.post("/setUserPerms", response_model=schemas.User, status_code=status.HTTP_200_OK, tags=["Users"])
@@ -522,7 +527,7 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = 
 
     - Requires OAuth2 form data to be sent
 
-    Note: Returns a 400 if either the username or password are incorrect.
+    Note: Returns a 400 if either the email or password are incorrect.
     """
     user = crud.get_user(db, form_data.username)
     if not user:
@@ -549,8 +554,8 @@ async def refresh_token(user: schemas.InternalUser = Depends(get_current_user), 
     if not crud.refresh_token_by_user(db, user):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Bad token")
 
-@app.get("/verify", status_code=status.HTTP_200_OK, tags=["Security"])
-async def verify_token(token: str, db: Session = Depends(get_db)):
+@app.post("/verifyAccount", status_code=status.HTTP_200_OK, tags=["Security"])
+async def verify_token(token: schemas.Token, db: Session = Depends(get_db)):
     """
     Attempts to verify a user account given a VERIFICATION type token
 
@@ -558,12 +563,12 @@ async def verify_token(token: str, db: Session = Depends(get_db)):
 
     Note: Returns a 400 if the token is invalid.
     """
-    token_obj = crud.get_token_by_token(db, token)
+    token_obj = crud.get_token_by_token(db, token.token)
     if not token and not token_obj.type == tokenType.VERIFICATION:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Bad token")
-    verify_account(db, token)
+    verify_account(db, token.token)
 
-@app.post("/verify", status_code=status.HTTP_200_OK, tags=["Security"])
+@app.post("/resentVerificationEmail", status_code=status.HTTP_200_OK, tags=["Security"])
 async def verify_email(email: str, db: Session = Depends(get_db)):
     """
     Resends verification email
@@ -582,7 +587,7 @@ async def verify_email(email: str, db: Session = Depends(get_db)):
     if token is None:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="User already verified")
 
-    send_verification_email(user, token.token)
+    send_verification_email(user, token)
 
 @app.post("/forgotpassword", status_code=status.HTTP_200_OK, tags=["Security"])
 async def forgot_password(email: str, request: Request, db: Session = Depends(get_db)):
@@ -593,17 +598,17 @@ async def forgot_password(email: str, request: Request, db: Session = Depends(ge
 
     Note: Returns a 404 if the email has no associated token.
     """
-    user = crud.get_user_from_username(db, email)
+    user = crud.get_user(db, email)
     
     if user is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User with that email does not exist")
 
-    token = crud.get_token_by_user(db, user.username, tokenType.PASSRESET)
+    token = crud.get_token_by_user(db, user.email, tokenType.PASSRESET)
     if token is not None:
         db.delete(token)
         db.commit()
 
-    token = crud.create_token(db, user.username, tokenType.PASSRESET)
+    token = crud.create_token(db, user.email, tokenType.PASSRESET)
     requesting_ip = request.client.host
     send_reset_email(user, token, requesting_ip)
 
@@ -622,7 +627,7 @@ async def verify_token(token: str, new_password: str, db: Session = Depends(get_
     elif token_obj.expires < datetime.now() or not token_obj.type == tokenType.PASSRESET:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Bad token")
     reset_password(db, new_password, token)
-    db.delete(get_token_by_user(db, token_obj.username, tokenType.ACCOUNT))
+    db.delete(get_token_by_user(db, token_obj.email, tokenType.ACCOUNT))
     db.delete(token_obj)
     db.commit
 # =============================================================================== DEBUG

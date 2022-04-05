@@ -113,4 +113,5 @@ class CreateUser(User):
 class StoreUser(User):
     hashedPassword: str
 
-    
+class Token(BaseModel):
+    token: str
