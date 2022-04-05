@@ -6,6 +6,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, UploadFile
 from fastapi.encoders import jsonable_encoder
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware
 
 import crud
 from apihelper import (decode_token, get_db, send_reset_email,
@@ -55,6 +56,23 @@ models.Base.metadata.create_all(bind=engine)
 
 # Initializes the application
 app = FastAPI(openapi_tags=tags_metadata)
+
+# Accepted cors origins
+origins = [
+    "http://localhost:80",
+    "http://localhost",
+    "http://134.53.116.212:8000",
+    "http://134.53.116.212"
+]
+
+# Adds cors to the application
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Initializes OAuth2 and tells the OpenAPI docs to look at the /login endpoint
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
