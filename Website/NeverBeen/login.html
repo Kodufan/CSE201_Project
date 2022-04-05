@@ -1,7 +1,7 @@
 <html>
 
 <link rel="stylesheet" href="neverbeen.css" />
-<script src="neverbeen.js"></script>
+<script src="login.js"></script>
 
 <body>
 
@@ -52,7 +52,19 @@
 
       <!-- Beginning of Sign up form -->
       <form id="Signup" class="tabcontent">
-        <p>signup form</p>
+        <div class="login-container">
+          <!-- Username -->
+          <label for="username"><b>Username</b></label>
+          <input type="text" placeholder="Enter Username" name="username" required>
+          <!-- email -->
+          <label for="email"><b>Email</b></label>
+          <input type="text" placeholder="Enter Email" name="email" required>
+          <!-- Password -->
+          <label for="rawPassword"><b>Password</b></label>
+          <input type="password" placeholder="Enter Password" name="rawPassword" required>
+          <!-- Signup button -->
+          <button type="submit">Sign Up</button>
+        </div>
       </form>
 
     </div>
