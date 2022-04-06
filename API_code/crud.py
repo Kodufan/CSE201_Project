@@ -58,8 +58,9 @@ def get_users(db: Session, skip: int = 0, limit: int = 100):
     return output
 
 def create_user(db: Session, user: schemas.CreateUser):
+    if not user.email or not user.username or not user.password:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Missing fields")
     hashed_password = hash_password(user.rawPassword)
-    
 
     if get_user(db, user.email) is not None:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email is taken")
