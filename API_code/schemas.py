@@ -108,6 +108,7 @@ class InternalUser(UserInfo):
 
 class CreateUser(User):
     email: str
+    username: str
     rawPassword: str
 
 class StoreUser(User):

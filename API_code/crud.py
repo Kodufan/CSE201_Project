@@ -41,14 +41,7 @@ def get_user_info(db: Session, username: str):
         return return_user
 
 def get_user_from_token(db: Session, token: str):
-    get_token = get_token_by_token(db, token)
-    if get_token is None:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Bad token")
-    if get_token.type == tokenType.VERIFICATION:
-        return get_user(db, get_token.email)
-    if not get_token.expires < datetime.now():
-        return get_user(db, refresh_token_by_token(db, token, tokenType.ACCOUNT).email)
-    raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Expired token")
+    return get_user(db, refresh_token_by_token(db, token).email)
 
 def get_users(db: Session, skip: int = 0, limit: int = 100):
     users = db.query(models.User).offset(skip).limit(limit).all()
@@ -58,7 +51,7 @@ def get_users(db: Session, skip: int = 0, limit: int = 100):
     return output
 
 def create_user(db: Session, user: schemas.CreateUser):
-    if not user.email or not user.username or not user.password:
+    if not user.email or not user.username or not user.rawPassword:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Missing fields")
     hashed_password = hash_password(user.rawPassword)
 
@@ -430,21 +423,29 @@ def create_token(db: Session, email: str, type: models.tokenType):
         except:
             pass
 
-def refresh_token_by_token(db: Session, token: str, type: tokenType):
-    db_token = db.query(models.Token).filter(models.Token.token == token).first()
-    if db_token.expires < datetime.now():
-        return
-    db_token.expires = datetime.now() + timedelta(minutes=ACCESS_TOKEN_DELTA_MINUTES)
-    db.commit()
+def refresh_token_by_token(db: Session, token: str):
+    db_token = get_token_by_token(db, token)
+    if db_token is None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Bad token")
+
+    if db_token.expires < datetime.now() and db_token.type == tokenType.ACCOUNT:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Token expired")
+    else:
+        db_token.expires = datetime.now() + timedelta(minutes=ACCESS_TOKEN_DELTA_MINUTES)
+        db.commit()
     return db_token
 
 def refresh_token_by_user(db: Session, user: schemas.InternalUser):
-    db_token = db.query(models.Token).filter(models.Token.username == user.username).first()
-    if db_token.expires < datetime.now() or type == tokenType.PASSRESET:
-        return
-    db_token.expires = datetime.now() + timedelta(minutes=ACCESS_TOKEN_DELTA_MINUTES)
-    db.commit()
-    return db_token
+    db_token = get_token_by_user(db, user.email, tokenType.ACCOUNT)
+    if db_token is None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Bad token")
+
+    if db_token.expires < datetime.now():
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Token expired")
+    else:
+        db_token.expires = datetime.now() + timedelta(minutes=ACCESS_TOKEN_DELTA_MINUTES)
+        db.commit()
+        return db_token
 
 def verify_account(db: Session, token: str):
     user = get_user_from_token(db, token)

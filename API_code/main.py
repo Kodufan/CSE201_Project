@@ -549,10 +549,9 @@ async def refresh_token(user: schemas.InternalUser = Depends(get_current_user), 
 
     - Tokens expire 15 minutes after they've either been issued initially or refreshed with this endpoint
 
-    Note: Returns a 400 if the token has expired. Requires reauthentication.
+    Note: Returns a 400 if the token is bad or has expired. Requires reauthentication.
     """
-    if not crud.refresh_token_by_user(db, user):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Bad token")
+    crud.refresh_token_by_user(db, crud.get_user(db, user.email))
 
 @app.post("/verifyAccount", status_code=status.HTTP_200_OK, tags=["Security"])
 async def verify_token(token: schemas.Token, db: Session = Depends(get_db)):
