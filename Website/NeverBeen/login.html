@@ -1,62 +1,76 @@
-<html>
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <link rel="stylesheet" href="neverbeen.css" />
+  </head>
+  <body>
+    <main>
+      <!-- Navigation bar -->
+      <header>
+        <h2><a href="index.html">NeverBeen</a></h2>
+        <nav>
+          <li><a href="#">Top Rated Locations</a></li>
+          <li><a href="#">Search</a></li>
+          <li><a href="#">Login/Signup</a></li>
+        </nav>
+      </header>
+      
+      <section class="hero">
+        <div class="background-image"> <img src="bg2.png" alt="background"> </div>
+        <div class="hero-content-area">
+    
+          <div class="tab">
+            <button class="tablinks" onclick="tabSelect(event, 'Login')">Login</button>
+            <button class="tablinks" onclick="tabSelect(event, 'Signup')">Sign Up</button>
+          </div>
+    
+          <!-- Beginning of Login form -->
+          <form id="Login" class="tabcontent" style="display: block" onsubmit="loginUser()"> <!-- "display: block" ensures this tab is open by default -->
+            <!-- <div class="imgcontainer">
+              <img src="img_avatar2.png" alt="Avatar" class="avatar">
+            </div> -->
+    
+            <div class="login-container">
+              <!-- Email -->
+              <label for="email"><b>Email</b></label>
+              <input type="text" placeholder="Enter Email" name="email" required>
+              <!-- Password -->
+              <label for="rawPassword"><b>Password</b></label>
+              <input type="password" placeholder="Enter Password" name="rawPassword" required>
+              <!-- Login button -->
+              <button type="submit">Login</button>
+              <!-- "Remember me" checkbox -->
+              <label>
+                <input type="checkbox" checked="checked" name="remember"> Remember me
+              </label>
+            </div>
+    
+            <div class="login-container">
+              <span class="psw"><a href="">Forgot password?</a></span>
+            </div>
+          </form>
+          
+          <!-- Beginning of Sign up form -->
+          <form id="Signup" class="tabcontent">
+            <div class="login-container">
+              <!-- Username -->
+              <label for="username"><b>Username</b></label>
+              <input type="text" placeholder="Enter Username" name="username" required>
+              <!-- email -->
+              <label for="email"><b>Email</b></label>
+              <input type="text" placeholder="Enter Email" name="email" required>
+              <!-- Password -->
+              <label for="rawPassword"><b>Password</b></label>
+              <input type="password" placeholder="Enter Password" name="rawPassword" required>
+              <!-- Signup button -->
+              <button type="submit"> Sign Up</button>
+            </div>
+          </form>
 
-<link rel="stylesheet" href="neverbeen.css" />
-<script src="neverbeen.js"></script>
-
-<body>
-
-  <!-- Navigation bar -->
-  <header>
-    <h2><a href="index.html">NeverBeen</a></h2>
-    <nav>
-      <li><a href="#">Top Rated Locations</a></li>
-      <li><a href="#">Search</a></li>
-      <li><a href="#">Login/Signup</a></li>
-    </nav>
-  </header>
-  
-  <section class="hero">
-    <div class="background-image"> <img src="bg2.png" alt="background"> </div>
-    <div class="hero-content-area">
-
-      <div class="tab">
-        <button class="tablinks" onclick="tabSelect(event, 'Login')">Login</button>
-        <button class="tablinks" onclick="tabSelect(event, 'Signup')">Sign Up</button>
-      </div>
-
-      <!-- Beginning of Login form -->
-      <form id="Login" class="tabcontent" action="action_page.php" method="post">
-        <!-- <div class="imgcontainer">
-          <img src="img_avatar2.png" alt="Avatar" class="avatar">
-        </div> -->
-
-        <div class="login-container">
-          <!-- Username -->
-          <label for="uname"><b>Username</b></label>
-          <input type="text" placeholder="Enter Username" name="uname" required>
-          <!-- Password -->
-          <label for="psw"><b>Password</b></label>
-          <input type="password" placeholder="Enter Password" name="psw" required>
-          <!-- Login button -->
-          <button type="submit">Login</button>
-          <!-- "Remember me" checkbox -->
-          <label>
-            <input type="checkbox" checked="checked" name="remember"> Remember me
-          </label>
         </div>
-
-        <div class="login-container">
-          <span class="psw"><a href="">Forgot password?</a></span>
-        </div>
-      </form>
-
-      <!-- Beginning of Sign up form -->
-      <form id="Signup" class="tabcontent">
-        <p>signup form</p>
-      </form>
-
-    </div>
-  </section>
-
-</body>
+      </section>
+    </main>
+    <script src="login.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.all.min.js"></script> 
+  </body>
 </html>
