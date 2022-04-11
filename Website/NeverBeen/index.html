@@ -3,16 +3,16 @@
 <script src="index.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.all.min.js"></script>
 
-<body>
+<body onload="showLoginButton()">
 
   <header>
     <h2><a href="#">NeverBeen</a></h2>
     <nav>
       <li><a href="#">Top Rated Locations</a></li>
       <li><a href="#">Search</a></li>
-      <li><a href="login.html">Login/Signup</a></li>
+      <li><a id="loginButton" href="login.html">Login/Signup</a></li>
+      <li><button id="logoutButton" title="Logout" onclick="logout()">Logout</button></li>
     </nav>
-    <button id="logout" title="Logout" onclick="logout()">Logout</button>
   </header>
     
   <section class="hero">

@@ -36,7 +36,6 @@ if(access_token != null){
 // Function that detects when the "Signup" form is submitted
 // When the form is submitted, send the form information to the "/createUser" endpoint in the NeverBeen API
 // If the user is successfully created, then the user is redirected to index.html
-console.log(document.getElementById("Signup"));
 document.getElementById("Signup").onsubmit = function(event){
     event.preventDefault();
     var username = document.getElementsByName("username")[0].value; // 1st instance of the username name
@@ -83,7 +82,6 @@ document.getElementById("Signup").onsubmit = function(event){
 // Function that detects when the "Login" form is submitted
 // When the form is submitted, send the form information to the "/login" endpoint in the NeverBeen API
 // If the user is successfully created, then the user is redirected to index.html
-console.log(document.getElementById("Login"));
 document.getElementById("Login").onsubmit = function(event){
     event.preventDefault();
     var email = document.getElementsByName("email")[0].value; // 1st instance of the email name
@@ -110,8 +108,7 @@ document.getElementById("Login").onsubmit = function(event){
         if(this.readyState == 4 && this.status == 200){ // 200 is the status code for "OK"
             // The user was successfully logged in
             // Store the access token in local storage
-            localStorage.setItem("access_token", this.responseText["access_token"]);
-            console.log(this.responseText["access_token"]);
+            localStorage.setItem("access_token", JSON.parse(this.responseText)["access_token"]);
             // Show the user a success message
             Swal.fire({
                 title: "Success!",
