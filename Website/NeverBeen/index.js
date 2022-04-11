@@ -1,6 +1,20 @@
 
 const NeverBeenAPI = "http://134.53.116.212:8000";
 
+// Function that logs the user out when clicking the "Logout" button
+function logout() {
+    // Remove the access token from local storage
+    localStorage.removeItem("access_token");
+    // Show popup message to the user that they have been logged out
+    Swal.fire({
+        title: "Success!",
+        text: "You have been logged out.",
+        icon: "success",
+        showConfirmButton: false,
+        timer: 1500
+    });
+}
+
 // Detect if a token parameter exists in the current URL and if it does, then 
 // call the "/verifyAccount" API endpoint in the NeverBeen API with the token as the response body
 // If the token is valid, then the user is logged in and the user is redirected to the home page
