@@ -630,17 +630,3 @@ async def verify_token(token: str, new_password: str, db: Session = Depends(get_
     db.delete(token_obj)
     db.commit
 # =============================================================================== DEBUG
-
-@app.get("/", tags=["Debug"], deprecated=True)
-async def debug():
-    """
-    Used for development to test functionality that requires an endpoint. Non functional
-    """
-    import ipinfo
-
-    from secret_config import IPINFO_ACCESS_TOKEN
-    ip = "134.53.116.212"
-    handler = ipinfo.getHandler(IPINFO_ACCESS_TOKEN)
-    response = handler.getDetails(ip).all
-    
-    return response
