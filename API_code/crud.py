@@ -112,7 +112,7 @@ def create_place(db: Session, place: schemas.SetPlace, user: schemas.InternalUse
         friendlyName=place.friendlyName,
         country=place.country,
         description=place.description,
-        isvisible=isStaff,
+        verified=isStaff,
         rating=-1
     )
 
