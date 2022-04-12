@@ -1,5 +1,41 @@
 
 const NeverBeenAPI = "http://134.53.116.212:8000";
+    
+// Create a function that shows the "Logout" button when the user is logged in
+// If the user is not logged in, then the "Login" button is shown instead
+// This function is called when the page loads
+function showLoginButton () {
+    // Check if the user is logged in
+    var access_token = localStorage.getItem("access_token");
+    console.log(access_token);
+    if(access_token != null){
+        // The user is logged in
+        // Show the "Logout" button
+        document.getElementById("loginButton").style.display = "none";
+        document.getElementById("logoutButton").style.display = "block";
+    } else {
+        // The user is not logged in
+        // Show the "Login" button
+        document.getElementById("loginButton").style.display = "block";
+        document.getElementById("logoutButton").style.display = "none";
+    }
+}
+
+// Function that logs the user out when clicking the "Logout" button
+function logout() {
+    // Remove the access token from local storage
+    localStorage.removeItem("access_token");
+    // Show popup message to the user that they have been logged out
+    Swal.fire({
+        title: "Success!",
+        text: "You have been logged out.",
+        icon: "success",
+        showConfirmButton: true
+    }).then(function () {
+        // Reload the page so that the user is logged out
+        window.location.reload();
+    });
+}
 
 // Detect if a token parameter exists in the current URL and if it does, then 
 // call the "/verifyAccount" API endpoint in the NeverBeen API with the token as the response body
