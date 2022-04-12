@@ -67,7 +67,7 @@ document.getElementById("Signup").onsubmit = function(event){
             // Send error message to the user
             Swal.fire({
                 title: "Error!",
-                text: "There was an error creating your account."+this.responseText,
+                text: "There was an error creating your account.\n"+JSON.parse(this.responseText)["detail"],
                 icon: "error",
                 confirmButtonText: "Continue"
             }).then(function(){
@@ -117,7 +117,7 @@ document.getElementById("Login").onsubmit = function(event){
             // Send error message to the user
             Swal.fire({
                 title: "Error!",
-                text: "There was an error logging you in."+this.responseText,
+                text: "There was an error logging you in.\n"+JSON.parse(this.responseText)["detail"],
                 icon: "error",
                 confirmButtonText: "Continue"
             }).then(function(){
