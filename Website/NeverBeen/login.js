@@ -89,13 +89,6 @@ document.getElementById("Login").onsubmit = function(event){
     var XHR = new XMLHttpRequest();
     XHR.open("post", NeverBeenAPI+"/login");
     XHR.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
-    console.log(new URLSearchParams({
-        "grant_type": "",
-        "username": email,
-        "password": password,
-        "client_id": "",
-        "client_secret": ""
-    }).toString());
     XHR.send(new URLSearchParams({
         "grant_type": "",
         "username": email,
