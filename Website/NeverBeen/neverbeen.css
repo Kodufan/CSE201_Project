@@ -411,3 +411,7 @@ span.psw {
 .srch{
   padding: 20px 46px;
 }
+
+.searchres{
+  list-style: none;
+}
