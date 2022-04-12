@@ -244,7 +244,7 @@ def get_place(placeID: int, db: Session = Depends(get_db)):
 @app.get("/place/user/{placeID}", response_model=schemas.GetPlace, tags=["Places"])
 def get_place(placeID: int, user: schemas.InternalUser = Depends(get_current_user), db: Session = Depends(get_db)):
     """
-    Gets the information of a palce
+    Gets the information of a place
 
     - placeID: ID of the place to retrieve. Will always be an integer
     - visibility: Determines whether all, verified, or unverified places are displayed
@@ -276,6 +276,18 @@ def list_places(order: placeOrder, latitude: float = 0, longitude: float = 0, sk
     else:
         places = get_places_by_distance(db, latitude, longitude, skip, limit, visibility.VERIFIED)
     return places
+
+@app.get("/place/{typingQuery}", response_model=List[schemas.SearchPlace], tags=["Places"])
+def get_place(typingQuery: str, db: Session = Depends(get_db)):
+    """
+    Gets the names and IDs of places who's friendlyName contain the typingQuery
+
+    - typingQuery: The string to search for in the friendlyName of the place
+
+    Note: Returns null if nothing exists.
+    """
+    db_place = crud.get_place_names(db, typingQuery)
+    return db_place
 
 @app.patch("/place/{placeID}", response_model=GetPlace, tags=["Places"])
 async def update_item(patch_place: PatchPlace, user: schemas.InternalUser = Depends(get_current_user), db: Session = Depends(get_db)):

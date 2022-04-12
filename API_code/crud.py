@@ -206,6 +206,18 @@ def get_places_from_user(db: Session, user: schemas.InternalUser):
         return_places.append(get_place(db, i.placeID))
     return return_places
 
+def get_place_names(db: Session, name: str):
+    db_places = db.query(models.Place).order_by(desc('rating')).filter(models.Place.friendlyName.contains(name)).filter(models.Place.verified == 1).all()
+    return_places = list()
+
+    for i in db_places:
+        new_place = schemas.SearchPlace(
+            placeID=i.placeID,
+            friendlyName=i.friendlyName
+        )
+        return_places.append(new_place)
+    return return_places
+
 def update_place(db: Session, place: PatchPlace):
     db_place = db.query(models.Place).filter(models.Place.placeID == place.placeID).first()
     db_place.plusCode = place.plusCode
