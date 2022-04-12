@@ -45,10 +45,6 @@ tags_metadata = [
         "name": "Security",
         "description": "Operations with security.",
     },
-    {
-        "name": "Debug",
-        "description": "Used for debug. Should never use for production",
-    },
 ]
 
 # Creates database connections
