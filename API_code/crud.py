@@ -112,7 +112,7 @@ def create_place(db: Session, place: schemas.SetPlace, user: schemas.InternalUse
         friendlyName=place.friendlyName,
         country=place.country,
         description=place.description,
-        isvisible=isStaff,
+        verified=isStaff,
         rating=-1
     )
 
@@ -204,6 +204,18 @@ def get_places_from_user(db: Session, user: schemas.InternalUser):
 
     for i in db_places:
         return_places.append(get_place(db, i.placeID))
+    return return_places
+
+def get_place_names(db: Session, name: str):
+    db_places = db.query(models.Place).order_by(desc('rating')).filter(models.Place.friendlyName.contains(name)).filter(models.Place.verified == 1).all()
+    return_places = list()
+
+    for i in db_places:
+        new_place = schemas.SearchPlace(
+            placeID=i.placeID,
+            friendlyName=i.friendlyName
+        )
+        return_places.append(new_place)
     return return_places
 
 def update_place(db: Session, place: PatchPlace):

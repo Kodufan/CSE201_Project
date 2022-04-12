@@ -89,6 +89,10 @@ class GetPlace(SetPlace):
 class InternalPlace(GetPlace):
     isvisible: bool
 
+class SearchPlace(BaseModel):
+    placeID: int
+    friendlyName: str
+
 class User(BaseModel):
     username: str
     

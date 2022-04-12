@@ -36,7 +36,6 @@ if(access_token != null){
 // Function that detects when the "Signup" form is submitted
 // When the form is submitted, send the form information to the "/createUser" endpoint in the NeverBeen API
 // If the user is successfully created, then the user is redirected to index.html
-console.log(document.getElementById("Signup"));
 document.getElementById("Signup").onsubmit = function(event){
     event.preventDefault();
     var username = document.getElementsByName("username")[0].value; // 1st instance of the username name
@@ -79,3 +78,52 @@ document.getElementById("Signup").onsubmit = function(event){
     }
 };
 
+
+// Function that detects when the "Login" form is submitted
+// When the form is submitted, send the form information to the "/login" endpoint in the NeverBeen API
+// If the user is successfully created, then the user is redirected to index.html
+document.getElementById("Login").onsubmit = function(event){
+    event.preventDefault();
+    var email = document.getElementsByName("email")[0].value; // 1st instance of the email name
+    var password = document.getElementsByName("rawPassword")[0].value; // 1st instance of the rawPassword name
+    var XHR = new XMLHttpRequest();
+    XHR.open("post", NeverBeenAPI+"/login");
+    XHR.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+    XHR.send(new URLSearchParams({
+        "grant_type": "",
+        "username": email,
+        "password": password,
+        "client_id": "",
+        "client_secret": ""
+    }).toString());
+    
+    XHR.onreadystatechange = function(){
+        if(this.readyState == 4 && this.status == 200){ // 200 is the status code for "OK"
+            // The user was successfully logged in
+            // Store the access token in local storage
+            localStorage.setItem("access_token", JSON.parse(this.responseText)["access_token"]);
+            // Show the user a success message
+            Swal.fire({
+                title: "Success!",
+                text: "Logged in successfully.",
+                icon: "success",
+                confirmButtonText: "Continue"
+            }).then(function(){
+                // Redirect the user to the home page
+                window.location.href = "index.html";
+            });
+        } else {
+            // The user was not logged in
+            // Send error message to the user
+            Swal.fire({
+                title: "Error!",
+                text: "There was an error logging you in."+this.responseText,
+                icon: "error",
+                confirmButtonText: "Continue"
+            }).then(function(){
+                // Refresh the login page
+                window.location.href = "login.html";
+            });
+        }
+    }
+};
