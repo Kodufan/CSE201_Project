@@ -1,5 +1,11 @@
 
 const NeverBeenAPI = "http://134.53.116.212:8000";
+
+// Functions to perform when the page loads
+function onload() {
+    verifyAccount();
+    showLoginButton();
+}
     
 // Create a function that shows the "Logout" button when the user is logged in
 // If the user is not logged in, then the "Login" button is shown instead
@@ -59,12 +65,28 @@ function verifyAccount() {
                 // The token was valid
                 // Store the token in local storage so that the user can be logged in automatically
                 localStorage.setItem("access_token", token);
-                // Now we need to redirect the user to the home page
-                window.location.href = "index.html";
+                // Show the user a sucess popup message
+                Swal.fire({
+                    title: "Success!",
+                    text: "Your account has been verified.",
+                    icon: "success",
+                    showConfirmButton: true
+                }).then(function () {
+                    // Redirect the user to the home page
+                    window.location.href = "index.html";
+                });
             } else if (this.readyState == 4 && this.status == 400) {
                 // The token was invalid
-                // Now we need to redirect the user to the login page
-                window.location.href = "login.html";
+                // Tell the user that the token was invalid
+                Swal.fire({
+                    title: "Error!",
+                    text: "The token was invalid. Please try again.",
+                    icon: "error",
+                    showConfirmButton: true
+                }).then(function () {
+                    // Redirect the user to the login page
+                    window.location.href = "login.html";
+                });
             }
         }
     } else {
@@ -80,10 +102,5 @@ function getUrlParameter(name) {
     var regex = new RegExp('[\\?&]' + name + '=([^&#]*)');
     var results = regex.exec(location.search);
     return results === null ? '' : decodeURIComponent(results[1].replace(/\+/g, ' '));
-}
-
-// Call the verifyAccount() function when the page loads
-window.onload = function () {
-    verifyAccount();
 }
 
