@@ -1,3 +1,4 @@
+# Installed from PIP. More information at https://www.sqlalchemy.org/
 from sqlalchemy import (Boolean, Column, DateTime, Enum, Float, ForeignKey,
                         Integer, String)
 
