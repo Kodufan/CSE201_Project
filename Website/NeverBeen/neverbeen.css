@@ -283,12 +283,15 @@ p{
 
 .ptg1{
   text-align: center;
-  color: White;
+  color: black;
   font: bold 28px "open Sans";
 
   height: 50px;
   width: 400px;
   border-radius: 6%;
+}
+.line{
+  color: black;
 }
 
 .pkgHeader{
@@ -303,8 +306,12 @@ h1{
 }
 
 .contact p{
-  color: white;
+  color: black;
 }
+.contact h3{
+  color: black;
+}
+
 
 /* Login/Signup sheet */
 
