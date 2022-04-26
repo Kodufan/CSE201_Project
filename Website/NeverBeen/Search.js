@@ -1,10 +1,10 @@
- function searchShow(){
- const NeverBeenAPI = "http://134.53.116.212:8000/places/guest?order=Popularity&latitude=0&longitude=0&skip=0&limit=5";
+ function searchShow(query){
+ const NeverBeenAPI = "http://134.53.116.212:8000/places/q=${query}";
  fetch(NeverBeenAPI)
  .then(response=> response.json())
  .then((jsonData)=>{
    console.log(jsonData);
-   const results = jsonData.map(element => element.friendlyName);
+   const results = jsonData.map(element);
    renderResults(results);
  });
  }
@@ -19,7 +19,6 @@
      element.innerText = result;
      list.appendChild(element);
    });
-
  }
 //
  window.onload = () =>{
