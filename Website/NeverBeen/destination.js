@@ -30,8 +30,30 @@ Place:
     }
   ]
 */
+const place = getParameter(placeId);
 
-const placeId = getUrlParameter("placeID"); 
+function onload() {
+  getData();
+}
+// Function that populates all information for destination page
+const getData = () => {
+    const request = new XMLHttpRequest();
+    request.open("get",NeverBeenAPI + "/place/guest/" + place);
+
+    request.onload = function() {
+      const data = JSON.parse(request.response);
+      console.log(data);
+    };
+
+    request.send();
+    
+};
+
+// Simple Alt getUrlParameter
+function getParameter(parameterName){
+  let parameters = new URLSearchParams( window.location.search )
+  return parameters.get(parameterName);
+}
 
 
 // Create a function "getUrlParameter" that takes in a parameter name and returns the value of the parameter
