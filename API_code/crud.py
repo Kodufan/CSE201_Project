@@ -6,6 +6,8 @@ from datetime import datetime, timedelta
 from typing import List
 
 from fastapi import HTTPException, status
+
+# Installed from PIP. More information at https://www.sqlalchemy.org/
 from sqlalchemy import desc
 from sqlalchemy.orm import Session
 
@@ -14,6 +16,9 @@ import schemas
 from config import (ACCESS_TOKEN_DELTA_MINUTES, SERVER_IP,
                     STATIC_FILES_DIRECTORY, TOKEN_LENGTH)
 from latlonhelper import distance
+
+# Taken from https://github.com/google/open-location-code
+# License information can be found in openlocationcode.py
 from openlocationcode import decode, isFull
 from schemas import PatchPlace, accessLevel, tokenType, visibility
 

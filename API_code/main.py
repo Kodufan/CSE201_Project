@@ -15,6 +15,9 @@ from config import STATIC_FILES_DIRECTORY
 from crud import *
 from database import engine
 from models import *
+
+# Taken from https://github.com/google/open-location-code
+# License information can be found in openlocationcode.py
 from openlocationcode import isFull
 from schemas import *
 from schemas import accessLevel, placeOrder, tokenType, visibility, Token
@@ -44,10 +47,6 @@ tags_metadata = [
     {
         "name": "Security",
         "description": "Operations with security.",
-    },
-    {
-        "name": "Debug",
-        "description": "Used for debug. Should never use for production",
     },
 ]
 

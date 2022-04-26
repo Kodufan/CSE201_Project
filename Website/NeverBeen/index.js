@@ -51,29 +51,27 @@ function logout() {
 // If the user is already logged in, then the user is redirected to the home page
 // If the user is not logged in, then the user is redirected to the login page
 function verifyAccount() {
-    const token = getUrlParameter("token");
-    console.log(token);
-    if (token) {
+    const verification_token = getUrlParameter("token");
+    console.log(verification_token);
+    if (verification_token) {
         const XHR = new XMLHttpRequest();
         XHR.open("post", NeverBeenAPI + "/verifyAccount");
         XHR.setRequestHeader("Content-type", "application/json");
         XHR.send(JSON.stringify({
-            "token": token
+            "token": verification_token
         }));
         XHR.onreadystatechange = function () {
             if (this.readyState == 4 && this.status == 200) {
                 // The token was valid
-                // Store the token in local storage so that the user can be logged in automatically
-                localStorage.setItem("access_token", token);
                 // Show the user a sucess popup message
                 Swal.fire({
                     title: "Success!",
-                    text: "Your account has been verified.",
+                    text: "Your account has been verified. You can now log in.",
                     icon: "success",
                     showConfirmButton: true
                 }).then(function () {
-                    // Redirect the user to the home page
-                    window.location.href = "index.html";
+                    // Redirect the user to the login page
+                    window.location.href = "login.html";
                 });
             } else if (this.readyState == 4 && this.status == 400) {
                 // The token was invalid

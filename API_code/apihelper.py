@@ -67,7 +67,7 @@ def send_verification_email(user: InternalUser, token: str):
 
     msg = f"""
 Thanks for taking the first step in going on a trip to somewhere you've NeverBeen before!<br>
-Please verify your account <a href="http://134.53.116.212/index.html?token={token}">here</a><br><br>
+Please verify your account <a href="http://neverbeen.ddns.net/index.html?token={token}">here</a><br><br>
 Thanks,
 NeverBeen."""
     msgMIME = MIMEText(msg,'html')
@@ -92,7 +92,7 @@ def send_reset_email(user: InternalUser, token: str, ip: str):
 
     msg = f"""
 Your account has requested a password reset request<br><br>
-If this was you, please reset your account <a href="http://134.53.116.212/index.html?resetpassword={token}">here</a>.
+If this was you, please reset your account <a href="http://neverbeen.ddns.net/index.html?resetpassword={token}">here</a>.
 This link is valid for 24 hours.<br><br>
 Thanks,<br>
 NeverBeen."""
