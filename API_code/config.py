@@ -4,4 +4,4 @@ ACCESS_TOKEN_DELTA_MINUTES = 15
 TOKEN_LENGTH = 64
 STATIC_FILES_DIRECTORY = "/mnt/c/Users/koduf/Documents/GitHub/CSE201_Project/usercontent/"
 SERVER_IP = "http://134.53.116.212:8000/"
-ACCEPTABLE_FILE_EXTENSIONS = [".apng", ".avif", ".gif", "jpeg", ".png", ".webp"]
+ACCEPTABLE_FILE_EXTENSIONS = [".apng", ".avif", ".gif", "jpeg", ".png", ".webp", ".jpg"]
