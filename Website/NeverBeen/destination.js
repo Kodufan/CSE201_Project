@@ -1,6 +1,10 @@
 
 const NeverBeenAPI = "http://134.53.116.212:8000";
 
+function onload() {
+  dataPopulate();
+}
+
 /*------------Attributes-----------------
 Place:
   "plusCode": "string",
@@ -30,36 +34,24 @@ Place:
     }
   ]
 */
-var place = 3
-var JSONdata = null;
-var placeID = 0;
 
-function populate() {
-  //getData();
-  //placeID=2&friendlyName=hi&country=america&description=helloworld
-  placeId = getUrlParameter('placeId');
-  const hPlaceName = getUrlParameter('friendlyName');
-  document.getElementById("title").innerHTML = hPlaceName;
-  const hCountry = getUrlParameter('country');
-  document.getElementById("country").innerHTML = hCountry;
-  const hDescription = getUrlParameter('description');
-  document.getElementById("desc").innerHTML = hDescription;
-}
-// Function that populates all information for destination page
-function getData() {
+// Function that populates reqursts from api
+function dataPopulate() {
     const request = new XMLHttpRequest();
-    request.open("get",NeverBeenAPI + "/place/guest/" + place);
+    request.open("get",NeverBeenAPI + "/place/guest/" + getUrlParameter("placeId"));
 
     request.onload = function() {
       const data = JSON.parse(request.response);
       console.log(data);
-      document.getElementById("desc").innerHTML = data;
+      document.getElementById("title").innerHTML = data['friendlyName'];
+      document.getElementById("country").innerHTML = data['country'];
+      document.getElementById("desc").innerHTML = data['description'];
+      document.getElementById("rate").innerHTML = "Rating: " + data['rating'];
+      document.getElementById("pic").src = data['thumbnails']['0']['externalURL'];
     };
 
     request.send();
-    
 };
-
 
 
 // Create a function "getUrlParameter" that takes in a parameter name and returns the value of the parameter
