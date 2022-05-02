@@ -1,7 +1,7 @@
 <html>
 <link rel="stylesheet" href="neverbeen.css" />
 <script src = "destination.js"></script>
-<body onload="onload()">
+<!--<body onload="onload()">-->
   
 <header>
     <h2><a href="index.html">NeverBeen</a></h2>
@@ -14,8 +14,8 @@
   <section class="hero">
       <div class="background-image"> <img src="bg2.png" alt="background"> </div>
       <div class="hero-content-area">
-        <h1>Destination Title</h1>
-        <h3>Location</h3>
+        <h1 id="title">Destination Title</h1>
+        <h3 id="country">Location</h3>
       </div>
       <style>
         .wrapper{
@@ -42,7 +42,7 @@
       <div class="hero-content-area">
        <hr>
       <div class = "wrapper">
-        <div>
+        <div id="desc">
           Text placeholder
         </div>
         <div>
@@ -77,7 +77,9 @@
         <div>
           Comments Placeholder
         </div>
-      </div>   
+      </div> 
+      <button type="button" onclick="populate()">Paste Url Params</button>  
+      <button type="button" onclick="getData()">Request</button>
   </section>
 </body>
 </html>

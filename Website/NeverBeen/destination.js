@@ -30,30 +30,36 @@ Place:
     }
   ]
 */
-const place = getParameter(placeId);
+var place = 3
+var JSONdata = null;
+var placeID = 0;
 
-function onload() {
-  getData();
+function populate() {
+  //getData();
+  //placeID=2&friendlyName=hi&country=america&description=helloworld
+  placeId = getUrlParameter('placeId');
+  const hPlaceName = getUrlParameter('friendlyName');
+  document.getElementById("title").innerHTML = hPlaceName;
+  const hCountry = getUrlParameter('country');
+  document.getElementById("country").innerHTML = hCountry;
+  const hDescription = getUrlParameter('description');
+  document.getElementById("desc").innerHTML = hDescription;
 }
 // Function that populates all information for destination page
-const getData = () => {
+function getData() {
     const request = new XMLHttpRequest();
     request.open("get",NeverBeenAPI + "/place/guest/" + place);
 
     request.onload = function() {
       const data = JSON.parse(request.response);
       console.log(data);
+      document.getElementById("desc").innerHTML = data;
     };
 
     request.send();
     
 };
 
-// Simple Alt getUrlParameter
-function getParameter(parameterName){
-  let parameters = new URLSearchParams( window.location.search )
-  return parameters.get(parameterName);
-}
 
 
 // Create a function "getUrlParameter" that takes in a parameter name and returns the value of the parameter
