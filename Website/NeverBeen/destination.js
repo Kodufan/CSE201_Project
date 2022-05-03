@@ -48,6 +48,10 @@ function dataPopulate() {
       document.getElementById("desc").innerHTML = data['description'];
       document.getElementById("rate").innerHTML = "Rating: " + data['rating'];
       document.getElementById("pic").src = data['thumbnails']['0']['externalURL'];
+      document.getElementById("comments").innerHTML =  
+      data['comments']['0']['ratingValue'] + " star rating   |   comment: " + 
+      data['comments']['0']['commentBody'] + "\r ( commented by " +
+      data['comments']['0']['username'] + " )";
     };
 
     request.send();
