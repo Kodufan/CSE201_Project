@@ -302,7 +302,7 @@ async def update_item(patch_place: PatchPlace, user: schemas.InternalUser = Depe
     Note: Returns a 404 if the place doesn't exist. Returns a 403 if the user is trying to modify someone else's place and is not staff. Staff can modify any place
     """
 
-    if not isFull(patch_place.plusCode):
+    if patch_place.plusCode is not None and not isFull(patch_place.plusCode):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid PlusCode")
     db_place = crud.get_place(db, patch_place.placeID)
     if db_place is None:
